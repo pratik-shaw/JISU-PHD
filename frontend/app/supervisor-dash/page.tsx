@@ -6,6 +6,7 @@ import { useState } from 'react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import SupervisorMenu from '@/app/supervisor-dash/Supervisor-menu';
+import ViewStudentProfile from '@/app/supervisor-dash/ViewStudentProfile';
 import {
   ClipboardCheck,
   Menu,
@@ -38,6 +39,10 @@ export default function SupervisorDashboardPage() {
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [reviewModal, setReviewModal] = useState(false);
   const [reviewText, setReviewText] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Mock data - Replace with actual API calls
   const students = [
@@ -89,6 +94,41 @@ export default function SupervisorDashboardPage() {
     alert(`Document "${doc.title}" has been forwarded to DSC for evaluation`);
   };
 
+  const handleViewProfile = (studentId: number) => {
+    setSelectedStudentId(studentId);
+  };
+
+  const handleCloseProfile = () => {
+    setSelectedStudentId(null);
+  };
+
+  const handlePasswordChange = () => {
+    // Validate inputs
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      alert('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      alert('New password must be at least 8 characters long');
+      return;
+    }
+
+    // Here you would make an API call to change the password
+    console.log('Changing password...');
+    alert('Password changed successfully!');
+    
+    // Clear fields
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
       {/* Navigation */}
@@ -98,6 +138,7 @@ export default function SupervisorDashboardPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <SupervisorMenu sidebarOpen={sidebarOpen} activeTab={activeTab} setActiveTabAction={setActiveTab} />
+        
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Top Bar */}
@@ -228,7 +269,10 @@ export default function SupervisorDashboardPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <button className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
+                              <button 
+                                onClick={() => handleViewProfile(student.id)}
+                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all"
+                              >
                                 View Profile
                               </button>
                             </td>
@@ -470,26 +514,63 @@ export default function SupervisorDashboardPage() {
                 </div>
               )}
 
-              {/* Messages Tab */}
-              {activeTab === 'messages' && (
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
-                  <MessageSquare className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Messages Coming Soon</h3>
-                  <p className="text-slate-400 max-w-md mx-auto">
-                    Communication features with students will be available here.
-                  </p>
-                </div>
-              )}
-
               {/* Settings Tab */}
               {activeTab === 'settings' && (
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
-                  <ClipboardCheck className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Settings Coming Soon</h3>
-                  <p className="text-slate-400 max-w-md mx-auto">
-                    Supervisor profile and preference settings will be available here.
-                  </p>
+                <div className="max-w-3xl mx-auto">
+              <h2 className="text-2xl font-bold mb-6">Settings</h2>
+              <div className="space-y-6">
+
+                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold mb-4">Change Password</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Current Password</label>
+                      <input 
+                        type="password" 
+                        placeholder="Enter current password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">New Password</label>
+                      <input 
+                        type="password" 
+                        placeholder="Enter new password (min 8 characters)"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+                      <input 
+                        type="password" 
+                        placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <button 
+                      onClick={handlePasswordChange}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-sm transition-all"
+                    >
+                      Update Password
+                    </button>
+                  </div>
                 </div>
+
+                
+
+                <div className="flex justify-end">
+                  <button className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all">
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
               )}
 
             </div>
@@ -552,6 +633,14 @@ export default function SupervisorDashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Student Profile Modal */}
+      {selectedStudentId !== null && (
+        <ViewStudentProfile 
+          studentId={selectedStudentId}
+          onClose={handleCloseProfile}
+        />
       )}
     </div>
   );

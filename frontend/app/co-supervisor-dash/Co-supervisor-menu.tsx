@@ -8,7 +8,6 @@ import {
   FileText,
   ClipboardCheck,
   BookOpen,
-  MessageSquare,
   Settings,
   LogOut,
   ChevronRight
@@ -81,12 +80,6 @@ export default function CoSupervisorMenu({ sidebarOpen, activeTab, onTabChangeAc
       label: 'Final Thesis', 
       tab: 'final-thesis',
       description: 'Final thesis submissions'
-    },
-    { 
-      icon: MessageSquare, 
-      label: 'Messages', 
-      tab: 'messages',
-      description: 'Communication hub'
     },
     { 
       icon: Settings, 
