@@ -217,8 +217,7 @@ export default function MemberLoginPage() {
     try {
       // TODO: BACKEND REQUIRED - Make API call to login endpoint
       // Uncomment and implement below:
-      /*
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -226,6 +225,7 @@ export default function MemberLoginPage() {
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
+          role: 'member',
         }),
         credentials: 'include', // Include cookies in request
       });
@@ -242,7 +242,7 @@ export default function MemberLoginPage() {
       }
 
       // Verify user role is one of the member roles
-      const validRoles = ['dsc-member', 'supervisor', 'co-supervisor'];
+      const validRoles = ['dsc_member', 'supervisor', 'co_supervisor'];
       if (!validRoles.includes(data.user.role)) {
         setError({
           field: 'general',
@@ -252,76 +252,18 @@ export default function MemberLoginPage() {
         return;
       }
 
-      // TODO: BACKEND REQUIRED - Store authentication token and user info
-      // Implementation:
-      // 1. Store token in localStorage (if not using httpOnly cookie)
-      // 2. Store token in sessionStorage for additional security
-      // 3. Store member/faculty info in state management
-      // 4. Set token in authorization headers for future API calls
-      //
-      // Example:
-      // if (data.token) {
-      //   localStorage.setItem('authToken', data.token);
-      //   localStorage.setItem('user', JSON.stringify(data.user));
-      //   localStorage.setItem('userRole', data.user.role);
-      //   localStorage.setItem('memberRole', data.user.role); // Store specific member role
-      // }
+      // Store authentication token and user info
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
       
       // Show success message
       setSuccessMessage(`Welcome, ${data.user.name}! Redirecting to your dashboard...`);
 
-      // TODO: BACKEND REQUIRED - Get dashboard route based on member role and redirect
       // Get the appropriate dashboard based on member's role
       const dashboardRoute = getDashboardRoute(data.user.role);
       
-      setTimeout(() => {
-        router.push(dashboardRoute);
-      }, 1500);
-      */
-
-      // Temporary mock implementation for frontend testing
-      // Mock user data with different roles for testing
-      const mockRoles: { [key: string]: MemberUser } = {
-        'dsc': {
-          id: 'member_456',
-          name: 'Dr. DSC Faculty',
-          email: 'dsc@jisuniversity.edu',
-          role: 'dsc-member',
-          department: 'Computer Science',
-        },
-        'sup': {
-          id: 'member_789',
-          name: 'Prof. Supervisor',
-          email: 'supervisor@jisuniversity.edu',
-          role: 'supervisor',
-          department: 'Computer Science',
-        },
-        'cosup': {
-          id: 'member_101',
-          name: 'Dr. Co-Supervisor',
-          email: 'cosupervisor@jisuniversity.edu',
-          role: 'co-supervisor',
-          department: 'Computer Science',
-        },
-      };
-
-      // Determine role based on email prefix for mock
-      let mockUser: MemberUser;
-      if (formData.email.includes('dsc')) {
-        mockUser = mockRoles['dsc'];
-      } else if (formData.email.includes('sup')) {
-        mockUser = mockRoles['sup'];
-      } else if (formData.email.includes('cosup')) {
-        mockUser = mockRoles['cosup'];
-      } else {
-        mockUser = mockRoles['dsc']; // Default to DSC member
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setSuccessMessage(`Welcome, ${mockUser.name}! Redirecting to your dashboard...`);
-      
-      // Get dashboard route based on role and redirect
-      const dashboardRoute = getDashboardRoute(mockUser.role);
       setTimeout(() => {
         router.push(dashboardRoute);
       }, 1500);

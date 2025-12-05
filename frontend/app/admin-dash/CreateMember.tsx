@@ -66,16 +66,24 @@ export default function CreateMember({ isOpen, onClose, onSuccess }: CreateMembe
     setError('');
 
     try {
-      // TODO: BACKEND INTEGRATION
-      // Uncomment and update the endpoint when backend is ready
-      /*
-      const response = await fetch('/api/admin/members/create', {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('Authentication token not found.');
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}` // Or your auth method
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: 'supervisor', // Defaulting to supervisor for now, could be a dropdown later
+          // uniqueId is not handled by the backend for non-student users yet
+        })
       });
 
       const data = await response.json();
@@ -84,15 +92,8 @@ export default function CreateMember({ isOpen, onClose, onSuccess }: CreateMembe
         throw new Error(data.message || 'Failed to create member');
       }
 
-      // Success handling
       console.log('Member created successfully:', data);
-      */
-
-      // MOCK SUCCESS - Remove this when backend is integrated
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      console.log('Member creation data:', formData);
       
-      // Reset form
       setFormData({
         name: '',
         email: '',
@@ -100,16 +101,13 @@ export default function CreateMember({ isOpen, onClose, onSuccess }: CreateMembe
         uniqueId: ''
       });
 
-      // Call success callback
       if (onSuccess) {
-        onSuccess();
+        onSuccess(); // Refresh user list in admin dashboard
       }
 
-      // Close modal
       onClose();
-
       // Show success message (you can integrate with a toast library)
-      alert('Member created successfully!'); // Replace with proper notification
+      alert('Member created successfully!'); 
 
     } catch (err: any) {
       setError(err.message || 'An error occurred while creating the member');

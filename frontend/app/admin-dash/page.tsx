@@ -3,7 +3,7 @@
 // FILE: app/admin-dash/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import AdminMenu from '@/app/admin-dash/Admin-menu';
@@ -21,6 +21,13 @@ import { Menu, X, Shield, Plus, Users, FileText, Award, CheckCircle, Eye, Edit, 
 export default function AdminDashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    pendingApplications: 0,
+    activeDSCs: 0,
+    recentSubmissions: 0,
+  });
+  const [recentUsers, setRecentUsers] = useState<any[]>([]);
   const [showCreateStudent, setShowCreateStudent] = useState(false);
   const [showCreateMember, setShowCreateMember] = useState(false);
   const [showCreateDSC, setShowCreateDSC] = useState(false);
@@ -50,112 +57,89 @@ export default function AdminDashboardPage() {
     mode: 'view',
     dsc: null
   });
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [dscs, setDscs] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [memberRoles, setMemberRoles] = useState<{ [key: number]: string }>({});
 
-  // Mock data
-  const stats = {
-    totalUsers: 156,
-    pendingApplications: 12,
-    activeDSCs: 8,
-    recentSubmissions: 24
+  const fetchData = async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+
+    try {
+      if (activeTab === 'dashboard') {
+        const [statsResponse, activityResponse] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stats`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/recent-activity`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        const statsData = await statsResponse.json();
+        if (statsData.success) setStats(statsData.data);
+        const activityData = await activityResponse.json();
+        if (activityData.success) setRecentUsers(activityData.data);
+      } else if (activeTab === 'users') {
+        const usersResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const usersData = await usersResponse.json();
+        if (usersData.success) setAllUsers(usersData.data);
+      } else if (activeTab === 'dsc') {
+        const dscsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const dscsData = await dscsResponse.json();
+        if (dscsData.success) setDscs(dscsData.data);
+      } else if (activeTab === 'roles') {
+        const membersResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/members`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const membersData = await membersResponse.json();
+        if (membersData.success) setMembers(membersData.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    }
   };
 
-  const recentUsers = [
-    { id: 1, name: 'Alice Johnson', role: 'Student', date: '2024-03-01' },
-    { id: 2, name: 'Dr. Smith', role: 'Supervisor', date: '2024-03-02' },
-    { id: 3, name: 'Prof. Wilson', role: 'DSC Member', date: '2024-03-03' },
-  ];
-
-  const allUsers = [
-    { id: 1, name: 'Alice Johnson', email: 'alice@university.edu', role: 'Student', status: 'Active', universityId: 'STU001' },
-    { id: 2, name: 'Bob Smith', email: 'bob@university.edu', role: 'Student', status: 'Active', universityId: 'STU002' },
-    { id: 3, name: 'Dr. Carol White', email: 'carol@university.edu', role: 'Supervisor', status: 'Active', uniqueId: 'FAC001' },
-    { id: 4, name: 'Prof. David Brown', email: 'david@university.edu', role: 'DSC Member', status: 'Active', uniqueId: 'FAC002' },
-  ];
-
-  const members = [
-    { id: 1, name: 'Dr. Smith', currentRole: 'Faculty' },
-    { id: 2, name: 'Prof. Johnson', currentRole: 'Faculty' },
-    { id: 3, name: 'Dr. Williams', currentRole: 'Supervisor' },
-  ];
-
-  const dscs = [
-    { 
-      id: 1, 
-      name: 'DSC Committee A', 
-      description: 'Computer Science & AI Research',
-      students: ['John Doe', 'Jane Smith'],
-      members: [
-        { name: 'Dr. Robert Smith', role: 'Supervisor' },
-        { name: 'Dr. Emily Johnson', role: 'Co-Supervisor' },
-        { name: 'Dr. Michael Brown', role: 'Member' }
-      ],
-      formationDate: '2024-01-15', 
-      status: 'Active' 
-    },
-    { 
-      id: 2, 
-      name: 'DSC Committee B', 
-      description: 'Biotechnology & Life Sciences',
-      students: ['Mike Johnson'],
-      members: [
-        { name: 'Dr. Sarah Davis', role: 'Supervisor' },
-        { name: 'Dr. James Wilson', role: 'Member' }
-      ],
-      formationDate: '2024-02-20', 
-      status: 'Active' 
-    },
-    { 
-      id: 3, 
-      name: 'DSC Committee C', 
-      description: 'Physics & Mathematics',
-      students: ['Sarah Williams', 'Robert Brown'],
-      members: [
-        { name: 'Dr. Lisa Anderson', role: 'Supervisor' },
-        { name: 'Dr. Robert Smith', role: 'Co-Supervisor' }
-      ],
-      formationDate: '2024-03-10', 
-      status: 'Active' 
-    },
-  ];
-
-  const applications = [
-    { id: 'APP001', student: 'Alice Johnson', status: 'Pending', date: '2024-03-01', type: 'Registration' },
-    { id: 'APP002', student: 'Bob Smith', status: 'Approved', date: '2024-02-28', type: 'Pre-Thesis' },
-    { id: 'APP003', student: 'Carol White', status: 'Under Review', date: '2024-03-02', type: 'Extension' },
-  ];
-
-  const submissions = [
-    {
-      id: 'SUB001',
-      studentName: 'Alice Johnson',
-      studentId: 'STU001',
-      type: 'Pre-Thesis',
-      title: 'Machine Learning Applications in Healthcare Diagnostics',
-      date: '2024-03-01',
-      status: 'Pending'
-    },
-    {
-      id: 'SUB002',
-      studentName: 'Bob Smith',
-      studentId: 'STU002',
-      type: 'Final Thesis',
-      title: 'Quantum Computing Algorithms for Optimization Problems',
-      date: '2024-02-28',
-      status: 'Pending'
-    },
-    {
-      id: 'SUB003',
-      studentName: 'Carol White',
-      studentId: 'STU003',
-      type: 'Pre-Thesis',
-      title: 'Sustainable Energy Solutions for Urban Development',
-      date: '2024-03-02',
-      status: 'Approved'
-    },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [activeTab]);
 
   const handleRefresh = () => {
-    console.log('Refreshing data...');
+    fetchData();
+  };
+
+  const handleUpdateRole = async (userId: number) => {
+    const newRole = memberRoles[userId];
+    if (!newRole) {
+      alert('Please select a role to update.');
+      return;
+    }
+
+    const token = localStorage.getItem('authToken');
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ role: newRole })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update role');
+      }
+
+      alert('Role updated successfully!');
+      handleRefresh();
+
+    } catch (error: any) {
+      console.error('Failed to update role:', error);
+      alert(`Error: ${error.message}`);
+    }
   };
 
   const openUserModal = (mode: 'view' | 'edit' | 'delete', user: any) => {
@@ -272,7 +256,7 @@ export default function AdminDashboardPage() {
                         <div key={user.id} className="flex items-center justify-between p-4 bg-slate-900/50 rounded-lg">
                           <div>
                             <p className="font-medium">{user.name}</p>
-                            <p className="text-sm text-slate-400">{user.role} • {user.date}</p>
+                            <p className="text-sm text-slate-400">{user.role} • {new Date(user.created_at).toLocaleDateString()}</p>
                           </div>
                           <span className="px-3 py-1 bg-green-600/20 text-green-400 rounded-full text-sm">New</span>
                         </div>
@@ -311,7 +295,7 @@ export default function AdminDashboardPage() {
                             <td className="px-6 py-4">{user.role}</td>
                             <td className="px-6 py-4">
                               <span className="px-3 py-1 bg-green-600/20 text-green-400 rounded-full text-sm">
-                                {user.status}
+                                Active
                               </span>
                             </td>
                             <td className="px-6 py-4">
@@ -339,12 +323,12 @@ export default function AdminDashboardPage() {
               {activeTab === 'roles' && (
                 <div className="space-y-4">
                   <h2 className="text-2xl font-bold mb-4">Manage Roles</h2>
-                  <p className="text-slate-400 text-sm mb-4">Select a role to assign to members</p>
+                  <p className="text-slate-400 text-sm mb-4">Select a role to assign to any user (excluding other admins).</p>
                   <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
                     <table className="w-full">
                       <thead className="bg-slate-700/30">
                         <tr className="text-left text-sm text-slate-400">
-                          <th className="px-6 py-3 font-medium">Member Name</th>
+                          <th className="px-6 py-3 font-medium">User Name</th>
                           <th className="px-6 py-3 font-medium">Current Role</th>
                           <th className="px-6 py-3 font-medium">Update Role</th>
                           <th className="px-6 py-3 font-medium">Action</th>
@@ -354,17 +338,24 @@ export default function AdminDashboardPage() {
                         {members.map((member) => (
                           <tr key={member.id} className="border-t border-slate-700 hover:bg-slate-800/30">
                             <td className="px-6 py-4">{member.name}</td>
-                            <td className="px-6 py-4">{member.currentRole}</td>
+                            <td className="px-6 py-4">{member.role}</td>
                             <td className="px-6 py-4">
-                              <select className="bg-slate-700 text-white rounded px-3 py-2 text-sm border border-slate-600 focus:border-purple-500 focus:outline-none">
-                                <option>Select Role</option>
-                                <option>Supervisor</option>
-                                <option>Co-Supervisor</option>
-                                <option>DSC Member</option>
+                              <select 
+                                className="bg-slate-700 text-white rounded px-3 py-2 text-sm border border-slate-600 focus:border-purple-500 focus:outline-none"
+                                onChange={(e) => setMemberRoles(prev => ({...prev, [member.id]: e.target.value}))}
+                                defaultValue={member.role}
+                              >
+                                <option value="student">Student</option>
+                                <option value="supervisor">Supervisor</option>
+                                <option value="co_supervisor">Co-Supervisor</option>
+                                <option value="dsc_member">DSC Member</option>
                               </select>
                             </td>
                             <td className="px-6 py-4">
-                              <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all">
+                              <button 
+                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all"
+                                onClick={() => handleUpdateRole(member.id)}
+                              >
                                 Update
                               </button>
                             </td>
@@ -410,19 +401,17 @@ export default function AdminDashboardPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="text-sm">
-                                <p className="font-medium text-blue-400">{dsc.students.length} Students</p>
-                                <p className="text-xs text-slate-400">{dsc.students.join(', ')}</p>
+                                <p className="font-medium text-blue-400">{/* Placeholder */}</p>
+                                <p className="text-xs text-slate-400">{/* Placeholder */}</p>
                               </div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="text-sm">
-                                <p className="font-medium text-purple-400">{dsc.members.length} Members</p>
-                                {dsc.members.map((m, i) => (
-                                  <p key={i} className="text-xs text-slate-400">{m.name} ({m.role})</p>
-                                ))}
+                                <p className="font-medium text-purple-400">{/* Placeholder */}</p>
+                                {/* Placeholder */}
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-slate-400">{dsc.formationDate}</td>
+                            <td className="px-6 py-4 text-slate-400">{new Date(dsc.formation_date).toLocaleDateString()}</td>
                             <td className="px-6 py-4">
                               <span className="px-3 py-1 bg-green-600/20 text-green-400 rounded-full text-sm">
                                 {dsc.status}
@@ -480,7 +469,7 @@ export default function AdminDashboardPage() {
                         {applications.map(app => (
                           <tr key={app.id} className="border-t border-slate-700 hover:bg-slate-800/30">
                             <td className="px-6 py-4 font-mono text-sm text-purple-400">{app.id}</td>
-                            <td className="px-6 py-4">{app.student}</td>
+                            <td className="px-6 py-4">{/* Placeholder */}</td>
                             <td className="px-6 py-4">
                               <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs">
                                 {app.type}
@@ -488,14 +477,14 @@ export default function AdminDashboardPage() {
                             </td>
                             <td className="px-6 py-4">
                               <span className={`px-3 py-1 rounded-full text-sm ${
-                                app.status === 'Pending' ? 'bg-yellow-600/20 text-yellow-400' :
-                                app.status === 'Approved' ? 'bg-green-600/20 text-green-400' :
+                                app.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' :
+                                app.status === 'approved' ? 'bg-green-600/20 text-green-400' :
                                 'bg-blue-600/20 text-blue-400'
                               }`}>
                                 {app.status}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-slate-400">{app.date}</td>
+                            <td className="px-6 py-4 text-slate-400">{new Date(app.submission_date).toLocaleDateString()}</td>
                             <td className="px-6 py-4">
                               <button 
                                 onClick={() => openReviewForStudent(app.id)}
@@ -543,28 +532,24 @@ export default function AdminDashboardPage() {
                             <td className="px-6 py-4 font-mono text-sm text-purple-400">{sub.id}</td>
                             <td className="px-6 py-4">
                               <div>
-                                <p className="font-medium">{sub.studentName}</p>
-                                <p className="text-xs text-slate-400">{sub.studentId}</p>
+                                <p className="font-medium">{/* Placeholder */}</p>
+                                <p className="text-xs text-slate-400">{/* Placeholder */}</p>
                               </div>
                             </td>
                             <td className="px-6 py-4 max-w-xs">
-                              <p className="truncate text-sm">{sub.title}</p>
+                              <p className="truncate text-sm">{/* Placeholder */}</p>
                             </td>
                             <td className="px-6 py-4">
                               <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs">
-                                {sub.type}
+                                {/* Placeholder */}
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-sm ${
-                                sub.status === 'Pending' ? 'bg-yellow-600/20 text-yellow-400' :
-                                sub.status === 'Approved' ? 'bg-green-600/20 text-green-400' :
-                                'bg-blue-600/20 text-blue-400'
-                              }`}>
-                                {sub.status}
+                              <span className={`px-3 py-1 rounded-full text-sm`}>
+                                {/* Placeholder */}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-slate-400">{sub.date}</td>
+                            <td className="px-6 py-4 text-slate-400">{/* Placeholder */}</td>
                             <td className="px-6 py-4">
                               <button 
                                 onClick={() => openReviewSubmission(sub.id)}

@@ -141,28 +141,25 @@ export default function ViewEditDeleteUser({
     setError('');
 
     try {
-      // TODO: BACKEND INTEGRATION
-      /*
-      const response = await fetch(`/api/admin/users/${user?.id}`, {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('Authentication token not found.');
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${user?.id}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          'Authorization': `Bearer ${token}`
         }
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to delete user');
+        // If the response is not JSON, response.text() can be used
+        const errorData = await response.json().catch(() => ({ message: 'Failed to delete user' }));
+        throw new Error(errorData.message);
       }
 
-      console.log('User deleted successfully:', data);
-      */
-
-      // MOCK SUCCESS
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Delete user:', user?.id);
+      console.log('User deleted successfully');
 
       if (onSuccess) onSuccess();
       onClose();
