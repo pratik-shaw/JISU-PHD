@@ -175,8 +175,7 @@ export default function StudentLoginPage() {
     try {
       // TODO: BACKEND REQUIRED - Make API call to login endpoint
       // Uncomment and implement below:
-      /*
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -223,44 +222,16 @@ export default function StudentLoginPage() {
         return;
       }
 
-      // TODO: BACKEND REQUIRED - Store authentication token and user info
-      // Implementation:
-      // 1. Store token in localStorage (if not using httpOnly cookie)
-      // 2. Store token in sessionStorage for additional security
-      // 3. Store student info in state management
-      // 4. Set token in authorization headers for future API calls
-      // 5. Update user context with student data
-      //
-      // Example:
-      // if (data.token) {
-      //   localStorage.setItem('authToken', data.token);
-      //   localStorage.setItem('user', JSON.stringify(data.user));
-      //   localStorage.setItem('userRole', data.user.role);
-      //   localStorage.setItem('studentId', data.user.student_id);
-      // }
+      // Store authentication token and user info
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
       
       // Show success message
       setSuccessMessage(`Welcome, ${data.user.name}! Redirecting to your dashboard...`);
 
-      // TODO: BACKEND REQUIRED - Redirect to student dashboard
-      // Student dashboard features should include:
-      // - Application status tracking
-      // - Progress monitoring
-      // - Document submission
-      // - Communication with faculty
-      // - Progress timeline
-      // - Announcement feeds
-      //
-      // setTimeout(() => {
-      //   router.push('/student-dashboard');
-      // }, 1500);
-      */
-
-      // Temporary mock implementation for frontend testing
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setSuccessMessage('Login successful! Redirecting to your dashboard...');
-      
-      // Mock redirect - replace with actual backend implementation
+      // Redirect to student dashboard
       setTimeout(() => {
         router.push('/student-dash');
       }, 1500);

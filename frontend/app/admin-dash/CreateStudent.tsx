@@ -66,16 +66,24 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
     setError('');
 
     try {
-      // TODO: BACKEND INTEGRATION
-      // Uncomment and update the endpoint when backend is ready
-      /*
-      const response = await fetch('/api/admin/students/create', {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('Authentication token not found.');
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}` // Or your auth method
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: 'student', // Always 'student' for this modal
+          // universityId: formData.universityId // This needs to be handled in the backend
+        })
       });
 
       const data = await response.json();
@@ -84,15 +92,8 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
         throw new Error(data.message || 'Failed to create student');
       }
 
-      // Success handling
       console.log('Student created successfully:', data);
-      */
-
-      // MOCK SUCCESS - Remove this when backend is integrated
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      console.log('Student creation data:', formData);
       
-      // Reset form
       setFormData({
         name: '',
         email: '',
@@ -100,16 +101,13 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
         universityId: ''
       });
 
-      // Call success callback
       if (onSuccess) {
-        onSuccess();
+        onSuccess(); // Refresh user list in admin dashboard
       }
 
-      // Close modal
       onClose();
-
       // Show success message (you can integrate with a toast library)
-      alert('Student created successfully!'); // Replace with proper notification
+      alert('Student created successfully!'); 
 
     } catch (err: any) {
       setError(err.message || 'An error occurred while creating the student');

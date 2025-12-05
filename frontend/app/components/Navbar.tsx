@@ -20,63 +20,51 @@ export default function Navbar() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: BACKEND REQUIRED - Check authentication status on mount
-    // Implementation steps:
-    // 1. Get auth token from localStorage: const token = localStorage.getItem('authToken');
-    // 2. If token exists, call API endpoint: GET /api/auth/me
-    // 3. Pass token in header: { 'Authorization': `Bearer ${token}` }
-    // 4. Parse response and set user state if valid
-    // 5. Remove token if invalid/expired
-    // 
-    // Example:
-    // try {
-    //   const token = localStorage.getItem('authToken');
-    //   if (token) {
-    //     const response = await fetch('http://localhost:5000/api/auth/me', {
-    //       headers: { 'Authorization': `Bearer ${token}` },
-    //       credentials: 'include'
-    //     });
-    //     const data = await response.json();
-    //     if (data.success) {
-    //       setUser(data.user);
-    //     } else {
-    //       localStorage.removeItem('authToken');
-    //     }
-    //   }
-    // } catch (error) {
-    //   console.error('Auth check failed:', error);
-    // }
-    
-    setIsLoading(false);
+    const checkAuthStatus = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+            credentials: 'include'
+          });
+          const data = await response.json();
+          if (data.success) {
+            setUser(data.user);
+          } else {
+            localStorage.removeItem('authToken');
+          }
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthStatus();
   }, []);
 
-  const handleLogout = () => {
-    // TODO: BACKEND REQUIRED - Clear authentication and notify backend
-    // Implementation steps:
-    // 1. Call logout endpoint: POST /api/auth/logout
-    // 2. Pass token in request for session cleanup
-    // 3. Remove token from localStorage: localStorage.removeItem('authToken');
-    // 4. Clear user state
-    // 5. Redirect to home page
-    //
-    // Example:
-    // try {
-    //   const token = localStorage.getItem('authToken');
-    //   await fetch('http://localhost:5000/api/auth/logout', {
-    //     method: 'POST',
-    //     headers: {
-    //       'Authorization': `Bearer ${token}`,
-    //       'Content-Type': 'application/json'
-    //     },
-    //     credentials: 'include'
-    //   });
-    // } catch (error) {
-    //   console.error('Logout failed:', error);
-    // } finally {
-    //   localStorage.removeItem('authToken');
-    //   setUser(null);
-    //   router.push('/');
-    // }
+  const handleLogout = async () => {
+    // Clear authentication and notify backend
+    try {
+      const token = localStorage.getItem('authToken');
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      setUser(null);
+      router.push('/');
+    }
     
     setUser(null);
     setMobileMenuOpen(false);

@@ -153,8 +153,7 @@ export default function AdminLoginPage() {
     try {
       // TODO: BACKEND REQUIRED - Make API call to login endpoint
       // Uncomment and implement below:
-      /*
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,27 +184,16 @@ export default function AdminLoginPage() {
       // 3. Set token in global auth context or state management
       //
       // Example:
-      // if (data.token) {
-      //   localStorage.setItem('authToken', data.token);
-      //   // Optionally store user info
-      //   localStorage.setItem('user', JSON.stringify(data.user));
-      // }
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+        // Optionally store user info
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
       
       // Show success message
       setSuccessMessage(`Welcome, ${data.user.name}! Redirecting to dashboard...`);
 
-      // TODO: BACKEND REQUIRED - Redirect to dashboard based on role
       // Redirect to role-specific dashboard after login
-      // setTimeout(() => {
-      //   router.push('/admin-dashboard');
-      // }, 1500);
-      */
-
-      // Temporary mock implementation for frontend testing
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setSuccessMessage('Login successful! Redirecting to dashboard...');
-      
-      // Mock redirect - replace with actual backend implementation
       setTimeout(() => {
         router.push('/admin-dash');
       }, 1500);
