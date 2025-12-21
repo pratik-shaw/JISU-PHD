@@ -8,8 +8,6 @@ export const useApi = () => {
 
   const apiFetch = useCallback(
     async (url: string, options: RequestInit = {}) => {
-      console.log('API call to:', url);
-      console.log('process.env.NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
       const token = localStorage.getItem('authToken');
 
       let fullUrl = url;
@@ -17,7 +15,6 @@ export const useApi = () => {
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         fullUrl = `${process.env.NEXT_PUBLIC_API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
       }
-      console.log('Constructed fullUrl:', fullUrl);
 
       const defaultHeaders: HeadersInit = {
         ...(token && { Authorization: `Bearer ${token}` }),

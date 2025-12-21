@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
+import FileViewer from '@/app/components/FileViewer';
 import SupervisorMenu from '@/app/supervisor-dash/Supervisor-menu';
 import ViewStudentProfile from '@/app/supervisor-dash/ViewStudentProfile';
 import { useApi } from '@/app/hooks/useApi';
@@ -39,12 +40,15 @@ export default function SupervisorDashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
-  const [reviewModal, setReviewModal] = useState(false);
+  const [rejectionModal, setRejectionModal] = useState(false);
   const [reviewText, setReviewText] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
+  const [fileToViewUrl, setFileToViewUrl] = useState('');
+  const [fileToViewType, setFileToViewType] = useState('');
 
   // State for fetched data and their loading/error states
   const [proposals, setProposals] = useState<any[]>([]);
@@ -66,12 +70,27 @@ export default function SupervisorDashboardPage() {
   const apiFetch = useApi();
   const router = useRouter();
 
+  const handleView = async (submission: any) => {
+    try {
+      const res = await apiFetch(`/api/supervisor/submissions/${submission.id}/view`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setFileToViewUrl(blobUrl);
+      // This is a basic inference. A more robust solution would be to get the mimetype from the backend.
+      setFileToViewType(submission.document_url?.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+      setIsFileViewerOpen(true);
+    } catch (error) {
+      console.error('Error fetching document for viewing:', error);
+      alert('Failed to load document for viewing.');
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       // Fetch Students
       try {
         setLoadingStudents(true);
-        const res = await apiFetch('/supervisor/students');
+        const res = await apiFetch('/api/supervisor/students');
         const data = await res.json();
         if (data.success) {
           setStudents(data.data);
@@ -90,7 +109,7 @@ export default function SupervisorDashboardPage() {
         setLoadingProposals(true);
         setLoadingPreThesis(true);
         setLoadingFinalThesis(true);
-        const res = await apiFetch('/supervisor/documents');
+        const res = await apiFetch('/api/supervisor/documents');
         const data = await res.json();
         if (data.success) {
           setProposals(data.data.filter((doc: any) => doc.type === 'Proposal/Report'));
@@ -120,14 +139,14 @@ export default function SupervisorDashboardPage() {
     fetchData();
   }, [apiFetch, router]);
   
-  const handleReview = (doc: any) => {
+  const handleReject = (doc: any) => {
     setSelectedDocument(doc);
-    setReviewModal(true);
+    setRejectionModal(true);
   };
 
-  const submitReview = async (recommendation: string) => {
+  const submitRejection = async (recommendation: string) => {
     try {
-      const response = await apiFetch('/api/supervisor/submit-review', {
+      const response = await apiFetch('/api/supervisor/reviews', {
         method: 'POST',
         body: JSON.stringify({
           submissionId: selectedDocument.id,
@@ -147,7 +166,7 @@ export default function SupervisorDashboardPage() {
       alert(`Error submitting review: ${error.message}`);
       console.error("Error submitting review:", error);
     } finally {
-      setReviewModal(false);
+      setRejectionModal(false);
       setReviewText('');
       setSelectedDocument(null);
     }
@@ -155,7 +174,7 @@ export default function SupervisorDashboardPage() {
 
   const sendToDSC = async (doc: any) => {
     try {
-      const response = await apiFetch(`/api/supervisor/documents/${doc.id}/forward-to-dsc`, {
+      const response = await apiFetch(`/api/supervisor/documents/${doc.id}/forward-to-admin`, {
         method: 'POST',
         body: JSON.stringify({
           documentId: doc.id,
@@ -289,20 +308,10 @@ export default function SupervisorDashboardPage() {
                       <div className="flex items-center justify-between mb-2">
                         <Clock className="w-8 h-8 opacity-80" />
                         <span className="text-3xl font-bold">
-                          {proposals.filter(p => p.status === 'Pending Review').length + 
-                           reports.filter(r => r.status === 'Pending Review').length}
+                          {(proposals.length + preThesis.length + finalThesis.length)}
                         </span>
                       </div>
                       <p className="text-sm opacity-90">Pending Reviews</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <CheckCircle className="w-8 h-8 opacity-80" />
-                        <span className="text-3xl font-bold">
-                          {proposals.filter(p => p.status === 'Approved').length}
-                        </span>
-                      </div>
-                      <p className="text-sm opacity-90">Approved</p>
                     </div>
                     <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-2">
@@ -410,16 +419,16 @@ export default function SupervisorDashboardPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex gap-2">
-                                <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
+                                <button onClick={() => handleView(proposal)} className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
                                   <Eye className="w-4 h-4" />
                                   View
                                 </button>
                                 <button 
-                                  onClick={() => handleReview(proposal)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-orange-600 hover:bg-orange-700 rounded text-sm transition-all"
+                                  onClick={() => handleReject(proposal)}
+                                  className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm transition-all"
                                 >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Review
+                                  <XCircle className="w-4 h-4" />
+                                  Reject
                                 </button>
                                 <button 
                                   onClick={() => sendToDSC(proposal)}
@@ -468,16 +477,16 @@ export default function SupervisorDashboardPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex gap-2">
-                                <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
-                                  <Download className="w-4 h-4" />
-                                  Download
+                                <button onClick={() => handleView(thesis)} className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
+                                  <Eye className="w-4 h-4" />
+                                  View
                                 </button>
                                 <button 
-                                  onClick={() => handleReview(thesis)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-orange-600 hover:bg-orange-700 rounded text-sm transition-all"
+                                  onClick={() => handleReject(thesis)}
+                                  className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm transition-all"
                                 >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Review
+                                  <XCircle className="w-4 h-4" />
+                                  Reject
                                 </button>
                                 <button 
                                   onClick={() => sendToDSC(thesis)}
@@ -524,16 +533,16 @@ export default function SupervisorDashboardPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex gap-2">
-                                <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
-                                  <Download className="w-4 h-4" />
-                                  Download
+                                <button onClick={() => handleView(thesis)} className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
+                                  <Eye className="w-4 h-4" />
+                                  View
                                 </button>
                                 <button 
-                                  onClick={() => handleReview(thesis)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-orange-600 hover:bg-orange-700 rounded text-sm transition-all"
+                                  onClick={() => handleReject(thesis)}
+                                  className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm transition-all"
                                 >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Review
+                                  <XCircle className="w-4 h-4" />
+                                  Reject
                                 </button>
                                 <button 
                                   onClick={() => sendToDSC(thesis)}
@@ -619,27 +628,27 @@ export default function SupervisorDashboardPage() {
       {/* Footer */}
       <Footer />
 
-      {/* Review Modal */}
-      {reviewModal && selectedDocument && (
+      {/* Rejection Modal */}
+      {rejectionModal && selectedDocument && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-xl max-w-2xl w-full p-6 border border-slate-700">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-xl font-bold">Review Document</h3>
+                <h3 className="text-xl font-bold">Reject Document</h3>
                 <p className="text-slate-400 text-sm mt-1">{selectedDocument.title}</p>
                 <p className="text-slate-500 text-xs mt-1">Student: {selectedDocument.student}</p>
               </div>
-              <button onClick={() => setReviewModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setRejectionModal(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Review Comments</label>
+                <label className="block text-sm font-medium mb-2">Feedback</label>
                 <textarea 
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-32 focus:border-orange-500 focus:outline-none"
-                  placeholder="Enter your detailed review comments, feedback, and suggestions..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-32 focus:border-red-500 focus:outline-none"
+                  placeholder="Enter your feedback for rejection..."
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
                 />
@@ -647,21 +656,7 @@ export default function SupervisorDashboardPage() {
 
               <div className="flex gap-3 pt-4">
                 <button 
-                  onClick={() => submitReview('approved')}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-all"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Approve
-                </button>
-                <button 
-                  onClick={() => submitReview('revision')}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-all"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  Request Revision
-                </button>
-                <button 
-                  onClick={() => submitReview('rejected')}
+                  onClick={() => submitRejection('rejected')}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
                 >
                   <XCircle className="w-4 h-4" />
@@ -673,6 +668,7 @@ export default function SupervisorDashboardPage() {
         </div>
       )}
 
+
       {/* Student Profile Modal */}
       {selectedStudentId !== null && (
         <ViewStudentProfile 
@@ -680,6 +676,14 @@ export default function SupervisorDashboardPage() {
           onClose={handleCloseProfile}
         />
       )}
+
+      {/* File Viewer Modal */}
+      <FileViewer 
+        isOpen={isFileViewerOpen}
+        onClose={() => setIsFileViewerOpen(false)}
+        fileUrl={fileToViewUrl}
+        fileType={fileToViewType}
+      />
     </div>
   );
 }

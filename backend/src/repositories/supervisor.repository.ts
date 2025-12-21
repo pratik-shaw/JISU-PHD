@@ -10,10 +10,10 @@ export const SupervisorRepository = {
         u.email,
         s.program,
         s.status
-      FROM student_supervisors ss
-      JOIN students s ON ss.student_id = s.id
+      FROM students s
       JOIN users u ON s.user_id = u.id
-      WHERE ss.supervisor_id = ? AND ss.supervisor_role = 'supervisor'
+      JOIN dsc_members dm ON s.dsc_id = dm.dsc_id
+      WHERE dm.user_id = ? AND dm.role_in_dsc = 'supervisor'
     `, [userId]);
     return rows as any[];
   },
@@ -60,13 +60,14 @@ export const SupervisorRepository = {
         sub.title,
         sub.type,
         sub.status,
-        sub.created_at as date,
-        u.name as student
+        sub.document_url,
+        sub.submission_date AS date,
+        stu_user.name AS student
       FROM submissions sub
       JOIN students s ON sub.student_id = s.id
-      JOIN student_supervisors ss ON s.id = ss.student_id
-      JOIN users u ON s.user_id = u.id
-      WHERE ss.supervisor_id = (SELECT id FROM supervisors WHERE user_id = ?) AND sub.status = 'pending_supervisor_approval'
+      JOIN users stu_user ON s.user_id = stu_user.id
+      JOIN dsc_members dm ON s.dsc_id = dm.dsc_id
+      WHERE dm.user_id = ? AND dm.role_in_dsc = 'supervisor' AND sub.status = 'pending_supervisor_approval'
     `, [userId]);
     return rows as any[];
   },
@@ -78,17 +79,28 @@ export const SupervisorRepository = {
       [submissionId, userId, feedbackComment]
     );
     const insertResult = result as any;
+
+    let newStatus: string;
     if (recommendation === 'approved') {
-      await pool.execute(
-        "UPDATE submissions SET status = 'approved' WHERE id = ?",
-        [submissionId]
-      );
+      newStatus = 'approved';
+    } else if (recommendation === 'revision') {
+      newStatus = 'revision_required';
+    } else if (recommendation === 'concerns') {
+      newStatus = 'needs_further_review';
+    } else {
+      newStatus = 'rejected'; // Default to rejected if no other specific action
     }
+
+    await pool.execute(
+        "UPDATE submissions SET status = ? WHERE id = ?",
+        [newStatus, submissionId]
+    );
+    
     return insertResult.insertId;
   },
   async forwardToAdmin(documentId: number): Promise<void> {
     await pool.execute(
-      "UPDATE submissions SET status = 'pending_admin_approval' WHERE id = ?",
+      "UPDATE submissions SET status = 'pending' WHERE id = ?",
       [documentId]
     );
   },

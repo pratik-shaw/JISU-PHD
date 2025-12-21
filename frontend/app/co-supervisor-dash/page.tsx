@@ -318,13 +318,6 @@ export default function CoSupervisorDashboardPage() {
                       <p className="text-sm opacity-90">Pending Reviews</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <Send className="w-8 h-8 opacity-80" />
-                        <span className="text-3xl font-bold">2</span>
-                      </div>
-                      <p className="text-sm opacity-90">Sent to Supervisor</p>
-                    </div>
                   </div>
 
                   {/* Recent Activity */}

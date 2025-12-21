@@ -22,6 +22,14 @@ const getReviewDocuments = asyncHandler(async (req: AuthenticatedRequest, res: R
   res.status(200).json({ success: true, data: documents });
 });
 
+const viewSubmissionFile = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const submissionId = Number(req.params.id);
+  const filePath = await SupervisorService.getSubmissionFilePath(submissionId, userId);
+
+  res.sendFile(filePath, { root: '.' });
+});
+
 const submitReview = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const { submissionId, recommendation, comments } = req.body;
@@ -36,10 +44,19 @@ const forwardToAdmin = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json({ success: true, message: 'Document forwarded to admin successfully' });
 });
 
+const changePassword = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const { currentPassword, newPassword } = req.body;
+  await SupervisorService.changePassword(userId, currentPassword, newPassword);
+  res.status(200).json({ success: true, message: 'Password changed successfully' });
+});
+
 export const SupervisorController = {
   getAssignedStudents,
   getStudentProfile,
   getReviewDocuments,
+  viewSubmissionFile,
   submitReview,
   forwardToAdmin,
+  changePassword,
 };

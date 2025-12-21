@@ -11,7 +11,9 @@ router.use(checkAuth, checkRole(['supervisor']));
 router.get('/students', SupervisorController.getAssignedStudents);
 router.get('/students/:id', SupervisorController.getStudentProfile);
 router.get('/documents', SupervisorController.getReviewDocuments);
+router.get('/submissions/:id/view', SupervisorController.viewSubmissionFile);
 router.post('/reviews', SupervisorController.submitReview);
 router.post('/documents/:id/forward-to-admin', SupervisorController.forwardToAdmin);
+router.put('/change-password', SupervisorController.changePassword);
 
 export default router;
