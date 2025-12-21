@@ -5,29 +5,27 @@ import { useState, useEffect } from 'react';
 import {
   X, CheckCircle, XCircle, Calendar, User, Mail, FileText,
   Download, MessageSquare, AlertCircle, Filter, Search,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Eye
 } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
+import FileViewer from '@/app/components/FileViewer'; // Import FileViewer
 
 interface Application {
-  id: string;
-  studentName: string;
-  studentEmail: string;
-  studentPhone: string;
-  universityId: string;
-  applicationType: 'Pre-Thesis' | 'Final Thesis' | 'Registration' | 'Extension';
-  submissionDate: string;
-  status: 'Pending' | 'Under Review' | 'Approved' | 'Rejected';
-  documents: { name: string; url: string; size: string; }[];
-  description: string;
-  proposedSupervisor?: string;
-  researchTitle?: string;
-  department?: string;
+  id: number;
+  student_id: number;
+  student_name: string; // From JOIN in backend
+  type: string; // 'Application'
+  status: 'pending' | 'approved' | 'rejected'; // Adjusted to match backend enum
+  submission_date: string;
+  title: string; // Maps to researchTitle from previous mock
+  abstract: string; // Maps to description from previous mock
+  document_url?: string;
 }
 
 interface ReviewSystemProps {
   isOpen: boolean;
   onClose: () => void;
-  applicationId?: string;
+  applicationId?: number; // Changed to number to match backend
   onSuccess?: () => void;
 }
 
@@ -43,92 +41,53 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
   const [reviewComments, setReviewComments] = useState('');
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
-  const mockApplications: Application[] = [
-    {
-      id: 'APP001',
-      studentName: 'Alice Johnson',
-      studentEmail: 'alice.johnson@university.edu',
-      studentPhone: '+1 234 567 8900',
-      universityId: 'STU2024001',
-      applicationType: 'Registration',
-      submissionDate: '2024-03-01',
-      status: 'Pending',
-      researchTitle: 'Machine Learning Applications in Healthcare',
-      proposedSupervisor: 'Dr. Robert Smith',
-      department: 'Computer Science',
-      description: 'Application for PhD registration in Machine Learning and AI with focus on healthcare applications.',
-      documents: [
-        { name: 'Research Proposal.pdf', url: '#', size: '2.4 MB' },
-        { name: 'Academic Transcripts.pdf', url: '#', size: '1.2 MB' },
-        { name: 'CV.pdf', url: '#', size: '856 KB' }
-      ]
-    },
-    {
-      id: 'APP002',
-      studentName: 'Bob Smith',
-      studentEmail: 'bob.smith@university.edu',
-      studentPhone: '+1 234 567 8901',
-      universityId: 'STU2024002',
-      applicationType: 'Pre-Thesis',
-      submissionDate: '2024-02-28',
-      status: 'Under Review',
-      researchTitle: 'Sustainable Energy Systems',
-      proposedSupervisor: 'Dr. Emily Johnson',
-      department: 'Engineering',
-      description: 'Pre-thesis submission for approval to proceed to comprehensive examination.',
-      documents: [
-        { name: 'Pre-Thesis Document.pdf', url: '#', size: '5.6 MB' },
-        { name: 'Literature Review.pdf', url: '#', size: '3.2 MB' }
-      ]
-    },
-    {
-      id: 'APP003',
-      studentName: 'Carol White',
-      studentEmail: 'carol.white@university.edu',
-      studentPhone: '+1 234 567 8902',
-      universityId: 'STU2024003',
-      applicationType: 'Extension',
-      submissionDate: '2024-03-02',
-      status: 'Pending',
-      researchTitle: 'Quantum Computing Algorithms',
-      proposedSupervisor: 'Dr. Michael Brown',
-      department: 'Physics',
-      description: 'Request for program extension due to unforeseen research complications.',
-      documents: [
-        { name: 'Extension Request.pdf', url: '#', size: '1.8 MB' },
-        { name: 'Progress Report.pdf', url: '#', size: '2.1 MB' },
-        { name: 'Supervisor Recommendation.pdf', url: '#', size: '654 KB' }
-      ]
-    }
-  ];
+  const apiFetch = useApi(); // Initialize useApi
+  
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
+  const [fileToViewUrl, setFileToViewUrl] = useState('');
+  const [fileToViewType, setFileToViewType] = useState('');
 
   useEffect(() => {
+    console.log('ReviewSystem useEffect triggered. isOpen:', isOpen, 'applicationId:', applicationId);
     if (isOpen) {
       fetchApplications();
     }
   }, [isOpen, applicationId]);
 
   const fetchApplications = async () => {
+    console.log('Entering fetchApplications');
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/admin/applications');
-      // const data = await response.json();
-      
-      setTimeout(() => {
-        setApplications(mockApplications);
-        
-        // If specific applicationId provided, auto-select and expand that application
-        if (applicationId) {
-          const app = mockApplications.find(a => a.id === applicationId);
-          if (app) {
-            setSelectedApplication(app);
-            setExpandedCard(app.id);
-          }
+      let response;
+      let data;
+      if (applicationId) {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/applications/${applicationId}`;
+        console.log('API call URL:', url);
+        response = await apiFetch(url);
+        console.log('API Response:', response);
+        data = await response.json();
+        console.log('Parsed Data:', data);
+        if (data.success) {
+          setApplications([data.data]);
+          setSelectedApplication(data.data);
+          setExpandedCard(data.data.id.toString());
+          console.log('Fetched single application data:', data);
+          console.log('Applications state after setting:', [data.data]);
         }
-        
-        setIsLoading(false);
-      }, 500);
+      } else {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/applications`;
+        console.log('API call URL:', url);
+        response = await apiFetch(url);
+        console.log('API Response:', response);
+        data = await response.json();
+        console.log('Parsed Data:', data);
+        if (data.success) {
+          setApplications(data.data);
+          console.log('Fetched all applications data:', data);
+          console.log('Applications state after setting:', data.data);
+        }
+      }
+      setIsLoading(false);
     } catch (error) {
       console.error('Error fetching applications:', error);
       setIsLoading(false);
@@ -140,32 +99,33 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
     
     setIsLoading(true);
     try {
-      // TODO: API call
-      // await fetch(`/api/admin/applications/${selectedApplication.id}/approve`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ comments: reviewComments })
-      // });
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/${selectedApplication.id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'approved', comment: reviewComments })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to approve application');
+      }
       
-      setTimeout(() => {
-        setApplications(prev =>
-          prev.map(app =>
-            app.id === selectedApplication.id ? { ...app, status: 'Approved' as const } : app
-          )
-        );
-        
-        setIsLoading(false);
-        setShowReviewModal(false);
-        setReviewComments('');
-        setSelectedApplication(null);
-        
-        if (onSuccess) onSuccess();
-        alert('Application approved successfully!');
-      }, 1000);
-    } catch (error) {
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === selectedApplication.id ? { ...app, status: 'approved' as const } : app
+        )
+      );
+      
+      setIsLoading(false);
+      setShowReviewModal(false);
+      setReviewComments('');
+      setSelectedApplication(null);
+      
+      if (onSuccess) onSuccess();
+      alert('Application approved successfully!');
+    } catch (error: any) {
       console.error('Error approving application:', error);
       setIsLoading(false);
-      alert('Error approving application. Please try again.');
+      alert(`Error: ${error.message}`);
     }
   };
 
@@ -177,27 +137,33 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
     
     setIsLoading(true);
     try {
-      // TODO: API call
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/${selectedApplication.id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'rejected', comment: reviewComments })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to reject application');
+      }
       
-      setTimeout(() => {
-        setApplications(prev =>
-          prev.map(app =>
-            app.id === selectedApplication.id ? { ...app, status: 'Rejected' as const } : app
-          )
-        );
-        
-        setIsLoading(false);
-        setShowReviewModal(false);
-        setReviewComments('');
-        setSelectedApplication(null);
-        
-        if (onSuccess) onSuccess();
-        alert('Application rejected successfully!');
-      }, 1000);
-    } catch (error) {
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === selectedApplication.id ? { ...app, status: 'rejected' as const } : app
+        )
+      );
+      
+      setIsLoading(false);
+      setShowReviewModal(false);
+      setReviewComments('');
+      setSelectedApplication(null);
+      
+      if (onSuccess) onSuccess();
+      alert('Application rejected successfully!');
+    } catch (error: any) {
       console.error('Error rejecting application:', error);
       setIsLoading(false);
-      alert('Error rejecting application. Please try again.');
+      alert(`Error: ${error.message}`);
     }
   };
 
@@ -210,20 +176,16 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
 
   const getStatusColor = (status: string) => {
     const colors = {
-      'Pending': 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30',
-      'Under Review': 'bg-blue-600/20 text-blue-400 border-blue-600/30',
-      'Approved': 'bg-green-600/20 text-green-400 border-green-600/30',
-      'Rejected': 'bg-red-600/20 text-red-400 border-red-600/30'
+      'pending': 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30',
+      'approved': 'bg-green-600/20 text-green-400 border-green-600/30',
+      'rejected': 'bg-red-600/20 text-red-400 border-red-600/30'
     };
     return colors[status as keyof typeof colors] || 'bg-slate-600/20 text-slate-400 border-slate-600/30';
   };
 
   const getTypeColor = (type: string) => {
     const colors = {
-      'Registration': 'bg-purple-600/20 text-purple-400',
-      'Pre-Thesis': 'bg-blue-600/20 text-blue-400',
-      'Final Thesis': 'bg-green-600/20 text-green-400',
-      'Extension': 'bg-orange-600/20 text-orange-400'
+      'Application': 'bg-purple-600/20 text-purple-400',
     };
     return colors[type as keyof typeof colors] || 'bg-slate-600/20 text-slate-400';
   };
@@ -233,10 +195,9 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
     ? applications.filter(app => app.id === applicationId)
     : applications.filter(app => {
         const matchesStatus = filterStatus === 'all' || app.status === filterStatus;
-        const matchesType = filterType === 'all' || app.applicationType === filterType;
-        const matchesSearch = app.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             app.universityId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             app.studentEmail.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesType = filterType === 'all' || app.type === filterType;
+        const matchesSearch = app.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                             app.id.toString().includes(searchQuery.toLowerCase());
         return matchesStatus && matchesType && matchesSearch;
       });
 
@@ -284,10 +245,9 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
                   className="px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
                 >
                   <option value="all">All Status</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Under Review">Under Review</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
                 </select>
               </div>
               <select
@@ -296,10 +256,9 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
                 className="px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
               >
                 <option value="all">All Types</option>
-                <option value="Registration">Registration</option>
+                <option value="Application">Application</option>
                 <option value="Pre-Thesis">Pre-Thesis</option>
                 <option value="Final Thesis">Final Thesis</option>
-                <option value="Extension">Extension</option>
               </select>
             </div>
             <div className="mt-4 text-sm text-slate-400">
@@ -322,6 +281,7 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
           ) : (
             <div className="space-y-4">
               {displayApplications.map((application) => (
+                console.log('Rendering application:', application),
                 <div
                   key={application.id}
                   className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 hover:border-purple-500/50 transition-all"
@@ -329,98 +289,71 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold text-white">{application.studentName}</h3>
+                        <h3 className="text-xl font-bold text-white">{application.student_name}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
                           {application.status}
                         </span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTypeColor(application.applicationType)}`}>
-                          {application.applicationType}
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTypeColor(application.type)}`}>
+                          {application.type}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-4 text-sm text-slate-400">
                         <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
-                          {application.universityId}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4" />
-                          {application.studentEmail}
-                        </div>
-                        <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          Submitted: {new Date(application.submissionDate).toLocaleDateString()}
+                          Submitted: {new Date(application.submission_date).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
                     <button
-                      onClick={() => setExpandedCard(expandedCard === application.id ? null : application.id)}
+                      onClick={() => setExpandedCard(expandedCard === application.id.toString() ? null : application.id.toString())}
                       className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
                     >
-                      {expandedCard === application.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                      {expandedCard === application.id.toString() ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                     </button>
                   </div>
 
-                  {application.researchTitle && (
+                  {application.title && (
                     <div className="mb-4">
-                      <p className="text-sm text-slate-400 mb-1">Research Title</p>
-                      <p className="text-white font-medium">{application.researchTitle}</p>
+                      <p className="text-sm text-slate-400 mb-1">Title</p>
+                      <p className="text-white font-medium">{application.title}</p>
                     </div>
                   )}
 
-                  {expandedCard === application.id && (
+                  {expandedCard === application.id.toString() && (
                     <div className="mt-4 pt-4 border-t border-slate-700 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {application.department && (
-                          <div>
-                            <p className="text-sm text-slate-400 mb-1">Department</p>
-                            <p className="text-white">{application.department}</p>
-                          </div>
-                        )}
-                        {application.proposedSupervisor && (
-                          <div>
-                            <p className="text-sm text-slate-400 mb-1">Proposed Supervisor</p>
-                            <p className="text-white">{application.proposedSupervisor}</p>
-                          </div>
-                        )}
-                        {application.studentPhone && (
-                          <div>
-                            <p className="text-sm text-slate-400 mb-1">Phone</p>
-                            <p className="text-white">{application.studentPhone}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-slate-400 mb-2">Description</p>
-                        <p className="text-white text-sm leading-relaxed">{application.description}</p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-slate-400 mb-2 flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          Attached Documents ({application.documents.length})
-                        </p>
-                        <div className="space-y-2">
-                          {application.documents.map((doc, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <FileText className="w-5 h-5 text-blue-400" />
-                                <div>
-                                  <p className="text-white text-sm font-medium">{doc.name}</p>
-                                  <p className="text-slate-400 text-xs">{doc.size}</p>
-                                </div>
-                              </div>
-                              <button className="p-2 hover:bg-slate-600 rounded-lg transition-colors">
-                                <Download className="w-4 h-4 text-slate-400" />
-                              </button>
-                            </div>
-                          ))}
+                      {application.abstract && (
+                        <div>
+                          <p className="text-sm text-slate-400 mb-2">Abstract</p>
+                          <p className="text-white text-sm leading-relaxed">{application.abstract}</p>
                         </div>
-                      </div>
+                      )}
+
+                      {application.document_url && (
+                        console.log('application.document_url:', application.document_url),
+                        <div>
+                          <p className="text-sm text-slate-400 mb-2 flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            Attached Document
+                          </p>
+                          <button 
+                            onClick={() => {
+                              console.log('Application document_url:', application.document_url);
+                              setFileToViewUrl(`${process.env.NEXT_PUBLIC_API_URL}/admin/submissions/${application.id}/view`);
+                              setFileToViewType(application.document_url!.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'); // Basic inference
+                              setIsFileViewerOpen(true);
+                            }}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all text-sm flex items-center gap-2"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View File
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {(application.status === 'Pending' || application.status === 'Under Review') && (
+                  {(application.status === 'pending') && (
+                    console.log('application.status (for buttons):', application.status),
                     <div className="flex gap-3 mt-4 pt-4 border-t border-slate-700">
                       <button
                         onClick={() => openReviewModal(application, 'approve')}
@@ -457,7 +390,7 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
                     {reviewAction === 'approve' ? 'Approve Application' : 'Reject Application'}
                   </h3>
                   <p className="text-sm text-slate-400">
-                    {selectedApplication.studentName} - {selectedApplication.applicationType}
+                    {selectedApplication.student_name} - {selectedApplication.type}
                   </p>
                 </div>
               </div>
@@ -533,6 +466,14 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
           </div>
         </div>
       )}
+
+      {/* File Viewer Modal */}
+      <FileViewer 
+        isOpen={isFileViewerOpen}
+        onClose={() => setIsFileViewerOpen(false)}
+        fileUrl={fileToViewUrl}
+        fileType={fileToViewType}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
+import { useApi } from '@/app/hooks/useApi';
 import { 
   Users, 
   Mail, 
@@ -57,6 +58,7 @@ interface MemberUser {
  */
 export default function MemberLoginPage() {
   const router = useRouter();
+  const apiFetch = useApi();
 
   // Form state management
   const [formData, setFormData] = useState<FormState>({
@@ -128,9 +130,9 @@ export default function MemberLoginPage() {
    */
   const getDashboardRoute = (memberRole: string): string => {
     const roleMap: { [key: string]: string } = {
-      'dsc-member': '/dsc-dash',
+      'dsc_member': '/dsc-dash',
       'supervisor': '/supervisor-dash',
-      'co-supervisor': '/co-supervisor-dash',
+      'co_supervisor': '/co-supervisor-dash',
     };
 
     return roleMap[memberRole] || '/member-dashboard'; // Default fallback
@@ -217,7 +219,7 @@ export default function MemberLoginPage() {
     try {
       // TODO: BACKEND REQUIRED - Make API call to login endpoint
       // Uncomment and implement below:
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -227,7 +229,6 @@ export default function MemberLoginPage() {
           password: formData.password,
           role: 'member',
         }),
-        credentials: 'include', // Include cookies in request
       });
 
       const data = await response.json();

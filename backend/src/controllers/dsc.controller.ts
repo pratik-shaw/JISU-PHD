@@ -60,4 +60,20 @@ export const DscController = {
         await DscService.removeMemberFromDsc(Number(userId), Number(dscId));
         res.status(204).send();
     }),
+
+    getDscMembers: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+        const members = await DscService.getDscMembers(Number(req.params.id));
+        res.status(200).json({
+            success: true,
+            data: members,
+        });
+    }),
+
+    getDscStudents: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+        const students = await DscService.getDscStudents(Number(req.params.id));
+        res.status(200).json({
+            success: true,
+            data: students,
+        });
+    }),
 };

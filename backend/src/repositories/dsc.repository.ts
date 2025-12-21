@@ -47,8 +47,8 @@ export const DscRepository = {
 
   async addMember(memberDto: DscMemberDTO): Promise<number> {
     const [result] = await pool.execute(
-      'INSERT INTO dsc_members (user_id, dsc_id, role_in_dsc) VALUES (?, ?, ?)',
-      [memberDto.userId, memberDto.dscId, memberDto.role]
+      'INSERT INTO dsc_members (user_id, dsc_id, role_in_dsc) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role_in_dsc = ?',
+      [memberDto.userId, memberDto.dscId, memberDto.role, memberDto.role]
     );
     const insertResult = result as any;
     return insertResult.insertId;
@@ -61,6 +61,24 @@ export const DscRepository = {
     );
     const deleteResult = result as any;
     return deleteResult.affectedRows > 0;
+  },
+
+  async findMembersByDscId(dscId: number): Promise<any[]> {
+    const [rows] = await pool.execute(
+      `SELECT u.id, u.name, u.email, dm.role_in_dsc as role
+       FROM dsc_members dm
+       JOIN users u ON dm.user_id = u.id
+       WHERE dm.dsc_id = ?`,
+      [dscId]
+    );
+    return rows as any[];
+  },
+
+  async findStudentsByDscId(dscId: number): Promise<any[]> {
+    // This assumes a student_dsc table exists for the many-to-many relationship
+    // As the table does not exist, this will need to be adjusted when it does.
+    // For now, returning an empty array to avoid errors.
+    return Promise.resolve([]);
   },
 
   async countByStatus(status: 'active' | 'inactive'): Promise<number> {

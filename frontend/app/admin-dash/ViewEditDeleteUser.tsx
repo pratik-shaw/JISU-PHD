@@ -2,8 +2,9 @@
 // FILE: app/admin-dash/ViewEditDeleteUser.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, User, Mail, Hash, Shield, Trash2, AlertTriangle } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
 
 interface UserData {
   id: number;
@@ -13,6 +14,12 @@ interface UserData {
   status: string;
   universityId?: string;
   uniqueId?: string;
+  dscId?: number; // Added dscId for students
+}
+
+interface Dsc {
+  id: number;
+  name: string;
 }
 
 interface ViewEditDeleteUserProps {
@@ -36,13 +43,17 @@ export default function ViewEditDeleteUser({
     role: user?.role || '',
     status: user?.status || '',
     universityId: user?.universityId || '',
-    uniqueId: user?.uniqueId || ''
+    uniqueId: user?.uniqueId || '',
+    dscId: user?.dscId || '' // Initialize dscId
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [dscs, setDscs] = useState<Dsc[]>([]);
+  const [loadingDscs, setLoadingDscs] = useState(true);
+  const apiFetch = useApi();
 
   // Update form data when user prop changes
-  useState(() => {
+  useEffect(() => {
     if (user) {
       setFormData({
         name: user.name,
@@ -50,10 +61,29 @@ export default function ViewEditDeleteUser({
         role: user.role,
         status: user.status,
         universityId: user.universityId || '',
-        uniqueId: user.uniqueId || ''
+        uniqueId: user.uniqueId || '',
+        dscId: user.dscId || '' // Initialize dscId from user data
       });
     }
-  });
+  }, [user]);
+
+  // Fetch DSCs on component mount
+  useEffect(() => {
+    const fetchDscs = async () => {
+      try {
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/dscs`);
+        const data = await res.json();
+        if (data.success) {
+          setDscs(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch DSCs:', err);
+      } finally {
+        setLoadingDscs(false);
+      }
+    };
+    fetchDscs();
+  }, [apiFetch]);
 
   /**
    * Handle form input changes
@@ -93,15 +123,18 @@ export default function ViewEditDeleteUser({
     setError('');
 
     try {
-      // TODO: BACKEND INTEGRATION
-      /*
-      const response = await fetch(`/api/admin/users/${user?.id}`, {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${user?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          // Only send dscId if the user is a student and dscId is selected
+          dscId: user?.role === 'student' && formData.dscId !== '' ? formData.dscId : undefined
+        })
       });
 
       const data = await response.json();
@@ -111,12 +144,7 @@ export default function ViewEditDeleteUser({
       }
 
       console.log('User updated successfully:', data);
-      */
-
-      // MOCK SUCCESS
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Update user data:', formData);
-
+      
       if (onSuccess) onSuccess();
       onClose();
       alert('User updated successfully!');
@@ -229,19 +257,9 @@ export default function ViewEditDeleteUser({
                     <span className="px-3 py-1 bg-purple-600/20 text-purple-400 rounded-full text-sm">
                       {user.role}
                     </span>
-                  </div>
-                </div>
-
-                {user.universityId && (
-                  <div className="flex items-start gap-3">
-                    <Hash className="w-5 h-5 text-slate-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs text-slate-400 mb-1">University ID</p>
-                      <p className="text-white">{user.universityId}</p>
-                    </div>
-                  </div>
-                )}
-
+                                  </div>
+                                </div>
+                  
                 {user.uniqueId && (
                   <div className="flex items-start gap-3">
                     <Hash className="w-5 h-5 text-slate-400 mt-0.5" />
@@ -251,7 +269,6 @@ export default function ViewEditDeleteUser({
                     </div>
                   </div>
                 )}
-
                 <div className="flex items-start gap-3">
                   <div className="w-5 h-5 flex items-center justify-center mt-0.5">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
@@ -342,6 +359,25 @@ export default function ViewEditDeleteUser({
                 </div>
               </div>
 
+              <div>
+                <label htmlFor="uniqueId" className="block text-sm font-medium text-slate-300 mb-2">
+                  Unique ID
+                </label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    id="uniqueId"
+                    name="uniqueId"
+                    value={formData.uniqueId}
+                    onChange={handleChange}
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                    placeholder="Enter unique ID"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
               {/* Status Field */}
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-slate-300 mb-2">
@@ -361,6 +397,30 @@ export default function ViewEditDeleteUser({
                   <option value="Suspended">Suspended</option>
                 </select>
               </div>
+
+              {/* DSC Assignment for Students */}
+              {mode === 'edit' && user?.role === 'student' && (
+                <div>
+                  <label htmlFor="dscId" className="block text-sm font-medium text-slate-300 mb-2">
+                    Assign DSC
+                  </label>
+                  <select
+                    id="dscId"
+                    name="dscId"
+                    value={formData.dscId}
+                    onChange={handleChange}
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                    disabled={loading || loadingDscs}
+                  >
+                    <option value="">{loadingDscs ? 'Loading DSCs...' : 'Select DSC'}</option>
+                    {dscs.map((dsc) => (
+                      <option key={dsc.id} value={dsc.id}>
+                        {dsc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-4">

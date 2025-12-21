@@ -11,5 +11,6 @@ export const createApplicationSchema = z.object({
 export const updateApplicationStatusSchema = z.object({
     body: z.object({
         status: z.enum(['pending', 'under_review', 'approved', 'rejected']),
+        comment: z.string().optional(),
     }),
 });

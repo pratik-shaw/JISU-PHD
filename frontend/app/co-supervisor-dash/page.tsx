@@ -3,15 +3,18 @@
 // FILE: app/co-supervisor-dash/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useApi } from '@/app/hooks/useApi';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import CoSupervisorMenu from '@/app/co-supervisor-dash/Co-supervisor-menu';
 import CoSupervisorStudentView from '@/app/co-supervisor-dash/Co-supervisorStudentView';
+import FileViewer from '@/app/components/FileViewer';
 import {
   UserCheck,
   Menu,
   X,
+
   Users,
   Clock,
   CheckCircle,
@@ -39,44 +42,109 @@ export default function CoSupervisorDashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
-  const [reviewModal, setReviewModal] = useState(false);
-  const [reviewText, setReviewText] = useState('');
+  const [rejectionModal, setRejectionModal] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  // Mock data - Replace with actual API calls
-  const students = [
-    { id: 1, name: 'Alice Johnson', email: 'alice@university.edu', year: '2nd Year', status: 'Active', primarySupervisor: 'Prof. Smith' },
-    { id: 2, name: 'Bob Smith', email: 'bob@university.edu', year: '3rd Year', status: 'Active', primarySupervisor: 'Prof. Johnson' },
-    { id: 3, name: 'Carol White', email: 'carol@university.edu', year: '1st Year', status: 'Active', primarySupervisor: 'Prof. Davis' },
-  ];
+  const [reviewText, setReviewText] = useState('');
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
+  const [fileToViewUrl, setFileToViewUrl] = useState('');
+  const [fileToViewType, setFileToViewType] = useState('');
 
-  const proposals = [
-    { id: 1, student: 'Alice Johnson', title: 'Machine Learning in Healthcare', date: '2024-01-15', status: 'Pending Review', supervisor: 'Prof. Smith' },
-    { id: 2, student: 'Bob Smith', title: 'Quantum Computing Applications', date: '2024-01-10', status: 'Approved', supervisor: 'Prof. Johnson' },
-    { id: 3, student: 'Carol White', title: 'Blockchain Security', date: '2024-01-20', status: 'Pending Review', supervisor: 'Prof. Davis' },
-  ];
+  // State for fetched data and their loading/error states
+  const [students, setStudents] = useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [errorStudents, setErrorStudents] = useState<string | null>(null);
 
-  const reports = [
-    { id: 1, student: 'Alice Johnson', title: 'Quarterly Progress Report Q1', date: '2024-02-01', status: 'Pending Review', supervisor: 'Prof. Smith' },
-    { id: 2, student: 'Bob Smith', title: 'Annual Research Report', date: '2024-01-25', status: 'Reviewed', supervisor: 'Prof. Johnson' },
-  ];
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [loadingProposals, setLoadingProposals] = useState(true);
+  const [errorProposals, setErrorProposals] = useState<string | null>(null);
 
-  const preThesis = [
-    { id: 1, student: 'Bob Smith', title: 'Pre-Thesis Submission', date: '2024-02-15', status: 'Under Review', supervisor: 'Prof. Johnson' },
-  ];
 
-  const finalThesis = [
-    { id: 1, student: 'Bob Smith', title: 'Final Thesis: Quantum Computing', date: '2024-03-01', status: 'Pending Review', supervisor: 'Prof. Johnson' },
-  ];
 
-  const handleReview = (doc: any) => {
-    setSelectedDocument(doc);
-    setReviewModal(true);
+  const [preThesis, setPreThesis] = useState<any[]>([]);
+  const [loadingPreThesis, setLoadingPreThesis] = useState(true);
+  const [errorPreThesis, setErrorPreThesis] = useState<string | null>(null);
+
+  const [finalThesis, setFinalThesis] = useState<any[]>([]);
+  const [loadingFinalThesis, setLoadingFinalThesis] = useState(true);
+  const [errorFinalThesis, setErrorFinalThesis] = useState<string | null>(null);
+
+  const apiFetch = useApi();
+
+  const handleView = async (submission: any) => {
+    try {
+      const res = await apiFetch(`/api/co-supervisor/submissions/${submission.id}/view`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setFileToViewUrl(blobUrl);
+      // This is a basic inference. A more robust solution would be to get the mimetype from the backend.
+      setFileToViewType(submission.document_url?.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+      setIsFileViewerOpen(true);
+    } catch (error) {
+      console.error('Error fetching document for viewing:', error);
+      alert('Failed to load document for viewing.');
+    }
   };
 
-  const handlePasswordChange = () => {
+
+  useEffect(() => {
+    const fetchData = async () => {
+      // Fetch Students
+      try {
+        setLoadingStudents(true);
+        const response = await apiFetch('/api/co-supervisor/students');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setStudents(data.data || []);
+      } catch (error: any) {
+        setErrorStudents(error.message || 'Failed to fetch students');
+        console.error("Failed to fetch students:", error);
+      } finally {
+        setLoadingStudents(false);
+      }
+
+      // Fetch all documents
+      try {
+        setLoadingProposals(true);
+        setLoadingPreThesis(true);
+        setLoadingFinalThesis(true);
+
+        const response = await apiFetch('/api/co-supervisor/documents');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+          const documents = data.data || [];
+          setProposals(documents.filter((doc: any) => doc.type === 'Proposal/Report'));
+          setPreThesis(documents.filter((doc: any) => doc.type === 'Pre-Thesis'));
+          setFinalThesis(documents.filter((doc: any) => doc.type === 'Final-Thesis'));
+        }
+      } catch (error: any) {
+        setErrorProposals(error.message || 'Failed to fetch documents');
+        setErrorPreThesis(error.message || 'Failed to fetch documents');
+        setErrorFinalThesis(error.message || 'Failed to fetch documents');
+        console.error("Failed to fetch documents:", error);
+      } finally {
+        setLoadingProposals(false);
+        setLoadingPreThesis(false);
+        setLoadingFinalThesis(false);
+      }
+    };
+
+    fetchData();
+  }, [apiFetch]);
+
+  const handleReject = (doc: any) => {
+    setSelectedDocument(doc);
+    setRejectionModal(true);
+  };
+
+  const handlePasswordChange = async () => {
     // Validate inputs
     if (!currentPassword || !newPassword || !confirmPassword) {
       alert('Please fill in all password fields');
@@ -93,33 +161,78 @@ export default function CoSupervisorDashboardPage() {
       return;
     }
 
-    // Here you would make an API call to change the password
-    console.log('Changing password...');
-    alert('Password changed successfully!');
-    
-    // Clear fields
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      const response = await apiFetch('/api/co-supervisor/change-password', {
+        method: 'PUT',
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to change password: ${response.statusText}`);
+      }
+
+      alert('Password changed successfully!');
+      // Clear fields only on success
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      alert(`Error changing password: ${error.message}`);
+      console.error("Error changing password:", error);
+    }
   };
 
-  const submitReview = (recommendation: string) => {
-    // TODO: BACKEND REQUIRED - Submit review to API
-    console.log('Review submitted:', {
-      document: selectedDocument,
-      recommendation,
-      comments: reviewText
-    });
-    alert(`Review submitted: ${recommendation.toUpperCase()}`);
-    setReviewModal(false);
-    setReviewText('');
-    setSelectedDocument(null);
+  const submitRejection = async (recommendation: string) => {
+    try {
+      const response = await apiFetch('/api/co-supervisor/reviews', {
+        method: 'POST',
+        body: JSON.stringify({
+          submissionId: selectedDocument.id,
+          recommendation,
+          comments: reviewText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to submit review: ${response.statusText}`);
+      }
+
+      alert(`Review submitted successfully: ${recommendation.toUpperCase()}`);
+      // Optionally, re-fetch data or update local state to reflect the change
+    } catch (error: any) {
+      alert(`Error submitting review: ${error.message}`);
+      console.error("Error submitting review:", error);
+    } finally {
+      setRejectionModal(false);
+      setReviewText('');
+      setSelectedDocument(null);
+    }
   };
 
-  const sendToSupervisor = (doc: any) => {
-    // TODO: BACKEND REQUIRED - Send document to primary supervisor
-    console.log('Sending to Supervisor:', doc);
-    alert(`Document "${doc.title}" has been forwarded to ${doc.supervisor} (Primary Supervisor) for evaluation`);
+  const sendToSupervisor = async (doc: any) => {
+    try {
+      const response = await apiFetch('/api/co-supervisor/documents/' + doc.id + '/forward', {
+        method: 'POST',
+        body: JSON.stringify({
+          documentId: doc.id,
+          documentType: doc.type, // Assuming a 'type' property
+          studentId: doc.studentId, // Assuming a studentId property
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send document to supervisor: ${response.statusText}`);
+      }
+
+      alert(`Document Send to Super Visor`);
+      // Optionally, re-fetch data or update local state to reflect the change
+    } catch (error: any) {
+      alert(`Error sending document to supervisor: ${error.message}`);
+      console.error("Error sending document to supervisor:", error);
+    }
   };
 
   const handleViewStudent = (studentId: number) => {
@@ -187,7 +300,9 @@ export default function CoSupervisorDashboardPage() {
                     <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-2">
                         <Users className="w-8 h-8 opacity-80" />
-                        <span className="text-3xl font-bold">{students.length}</span>
+                        <span className="text-3xl font-bold">
+                          {loadingStudents ? <span className="text-xl">...</span> : errorStudents ? 'Error' : students.length}
+                        </span>
                       </div>
                       <p className="text-sm opacity-90">Active Students</p>
                     </div>
@@ -195,21 +310,14 @@ export default function CoSupervisorDashboardPage() {
                       <div className="flex items-center justify-between mb-2">
                         <Clock className="w-8 h-8 opacity-80" />
                         <span className="text-3xl font-bold">
-                          {proposals.filter(p => p.status === 'Pending Review').length + 
-                           reports.filter(r => r.status === 'Pending Review').length}
+                          {(loadingProposals || loadingPreThesis || loadingFinalThesis) ? <span className="text-xl">...</span> : 
+                           (errorProposals || errorPreThesis || errorFinalThesis) ? 'Error' :
+                          (proposals.length + preThesis.length + finalThesis.length)}
                         </span>
                       </div>
                       <p className="text-sm opacity-90">Pending Reviews</p>
                     </div>
-                    <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <CheckCircle className="w-8 h-8 opacity-80" />
-                        <span className="text-3xl font-bold">
-                          {proposals.filter(p => p.status === 'Approved').length}
-                        </span>
-                      </div>
-                      <p className="text-sm opacity-90">Approved</p>
-                    </div>
+
                     <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-2">
                         <Send className="w-8 h-8 opacity-80" />
@@ -246,44 +354,52 @@ export default function CoSupervisorDashboardPage() {
               {/* My Students Tab */}
               {activeTab === 'students' && (
                 <div className="space-y-4">
-                  <h2 className="text-2xl font-bold mb-4">My Students</h2>
-                  <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-slate-700/30">
-                        <tr className="text-left text-sm text-slate-400">
-                          <th className="px-6 py-3 font-medium">Name</th>
-                          <th className="px-6 py-3 font-medium">Email</th>
-                          <th className="px-6 py-3 font-medium">Year</th>
-                          <th className="px-6 py-3 font-medium">Primary Supervisor</th>
-                          <th className="px-6 py-3 font-medium">Status</th>
-                          <th className="px-6 py-3 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {students.map(student => (
-                          <tr key={student.id} className="border-t border-slate-700 hover:bg-slate-800/30">
-                            <td className="px-6 py-4">{student.name}</td>
-                            <td className="px-6 py-4 text-slate-400">{student.email}</td>
-                            <td className="px-6 py-4">{student.year}</td>
-                            <td className="px-6 py-4 text-slate-300">{student.primarySupervisor}</td>
-                            <td className="px-6 py-4">
-                              <span className="px-3 py-1 bg-green-600/20 text-green-400 rounded-full text-sm">
-                                {student.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <button 
-                                onClick={() => handleViewStudent(student.id)}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all"
-                              >
-                                View Profile
-                              </button>
-                            </td>
+                  <h2 className="2xl font-bold mb-4">My Students</h2>
+                  {loadingStudents && (
+                    <div className="text-center py-8">
+                      <p className="text-lg text-slate-400">Loading students...</p>
+                    </div>
+                  )}
+                  {errorStudents && (
+                    <div className="bg-red-900/30 border border-red-700 text-red-400 p-4 rounded-lg">
+                      <p className="font-medium">Error: {errorStudents}</p>
+                      <p className="text-sm">Please try refreshing the page or contact support.</p>
+                    </div>
+                  )}
+                  {!loadingStudents && !errorStudents && students.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-lg text-slate-400">No students assigned to you yet.</p>
+                    </div>
+                  )}
+                  {!loadingStudents && !errorStudents && students.length > 0 && (
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-slate-700/30">
+                          <tr className="text-left text-sm text-slate-400">
+                            <th className="px-6 py-3 font-medium">Name</th>
+                            <th className="px-6 py-3 font-medium">Email</th>
+                            <th className="px-6 py-3 font-medium">Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {students.map(student => (
+                            <tr key={student.id} className="border-t border-slate-700 hover:bg-slate-800/30">
+                              <td className="px-6 py-4">{student.name}</td>
+                              <td className="px-6 py-4 text-slate-400">{student.email}</td>
+                              <td className="px-6 py-4">
+                                <button 
+                                  onClick={() => handleViewStudent(student.id)}
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all"
+                                >
+                                  View Profile
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -291,179 +407,154 @@ export default function CoSupervisorDashboardPage() {
               {activeTab === 'proposals' && (
                 <div className="space-y-4">
                   <h2 className="text-2xl font-bold mb-4">Research Proposals</h2>
-                  <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-slate-700/30">
-                        <tr className="text-left text-sm text-slate-400">
-                          <th className="px-6 py-3 font-medium">Student</th>
-                          <th className="px-6 py-3 font-medium">Title</th>
-                          <th className="px-6 py-3 font-medium">Primary Supervisor</th>
-                          <th className="px-6 py-3 font-medium">Date</th>
-                          <th className="px-6 py-3 font-medium">Status</th>
-                          <th className="px-6 py-3 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {proposals.map(proposal => (
-                          <tr key={proposal.id} className="border-t border-slate-700 hover:bg-slate-800/30">
-                            <td className="px-6 py-4">{proposal.student}</td>
-                            <td className="px-6 py-4 text-slate-300">{proposal.title}</td>
-                            <td className="px-6 py-4 text-slate-400">{proposal.supervisor}</td>
-                            <td className="px-6 py-4 text-slate-400">{proposal.date}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-sm ${
-                                proposal.status === 'Pending Review' ? 'bg-yellow-600/20 text-yellow-400' :
-                                'bg-green-600/20 text-green-400'
-                              }`}>
-                                {proposal.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex gap-2">
-                                <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
-                                  <Eye className="w-4 h-4" />
-                                  View
-                                </button>
-                                <button 
-                                  onClick={() => handleReview(proposal)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 rounded text-sm transition-all"
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Review
-                                </button>
-                                <button 
-                                  onClick={() => sendToSupervisor(proposal)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all"
-                                >
-                                  <Send className="w-4 h-4" />
-                                  Send to Supervisor
-                                </button>
-                              </div>
-                            </td>
+                  {loadingProposals && (
+                    <div className="text-center py-8">
+                      <p className="text-lg text-slate-400">Loading proposals...</p>
+                    </div>
+                  )}
+                  {errorProposals && (
+                    <div className="bg-red-900/30 border border-red-700 text-red-400 p-4 rounded-lg">
+                      <p className="font-medium">Error: {errorProposals}</p>
+                      <p className="text-sm">Please try refreshing the page or contact support.</p>
+                    </div>
+                  )}
+                  {!loadingProposals && !errorProposals && proposals.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-lg text-slate-400">No proposals found.</p>
+                    </div>
+                  )}
+                  {!loadingProposals && !errorProposals && proposals.length > 0 && (
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-slate-700/30">
+                          <tr className="text-left text-sm text-slate-400">
+                            <th className="px-6 py-3 font-medium">Student</th>
+                            <th className="px-6 py-3 font-medium">Title</th>
+                            <th className="px-6 py-3 font-medium">Date</th>
+                            <th className="px-6 py-3 font-medium">Status</th>
+                            <th className="px-6 py-3 font-medium">Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {proposals.map(proposal => (
+                            <tr key={proposal.id} className="border-t border-slate-700 hover:bg-slate-800/30">
+                              <td className="px-6 py-4">{proposal.student}</td>
+                              <td className="px-6 py-4 text-slate-300">{proposal.title}</td>
+                              <td className="px-6 py-4 text-slate-400">{proposal.date}</td>
+                              <td className="px-6 py-4">
+                                <span className={`px-3 py-1 rounded-full text-sm ${
+                                  proposal.status === 'Pending Review' ? 'bg-yellow-600/20 text-yellow-400' :
+                                  'bg-green-600/20 text-green-400'
+                                }`}>
+                                  {proposal.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleView(proposal)} className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
+                                    <Eye className="w-4 h-4" />
+                                    View
+                                  </button>
+                                  <button 
+                                    onClick={() => handleReject(proposal)}
+                                    className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm transition-all"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Reject
+                                  </button>
+                                  <button 
+                                    onClick={() => sendToSupervisor(proposal)}
+                                    className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all"
+                                  >
+                                    <Send className="w-4 h-4" />
+                                    Send to Supervisor
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Reports Tab */}
-              {activeTab === 'reports' && (
-                <div className="space-y-4">
-                  <h2 className="text-2xl font-bold mb-4">Progress Reports</h2>
-                  <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-slate-700/30">
-                        <tr className="text-left text-sm text-slate-400">
-                          <th className="px-6 py-3 font-medium">Student</th>
-                          <th className="px-6 py-3 font-medium">Title</th>
-                          <th className="px-6 py-3 font-medium">Primary Supervisor</th>
-                          <th className="px-6 py-3 font-medium">Date</th>
-                          <th className="px-6 py-3 font-medium">Status</th>
-                          <th className="px-6 py-3 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reports.map(report => (
-                          <tr key={report.id} className="border-t border-slate-700 hover:bg-slate-800/30">
-                            <td className="px-6 py-4">{report.student}</td>
-                            <td className="px-6 py-4 text-slate-300">{report.title}</td>
-                            <td className="px-6 py-4 text-slate-400">{report.supervisor}</td>
-                            <td className="px-6 py-4 text-slate-400">{report.date}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-sm ${
-                                report.status === 'Pending Review' ? 'bg-yellow-600/20 text-yellow-400' :
-                                'bg-blue-600/20 text-blue-400'
-                              }`}>
-                                {report.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex gap-2">
-                                <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
-                                  <Eye className="w-4 h-4" />
-                                  View
-                                </button>
-                                <button 
-                                  onClick={() => handleReview(report)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 rounded text-sm transition-all"
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Review
-                                </button>
-                                <button 
-                                  onClick={() => sendToSupervisor(report)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all"
-                                >
-                                  <Send className="w-4 h-4" />
-                                  Send to Supervisor
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+
 
               {/* Pre-Thesis Tab */}
               {activeTab === 'pre-thesis' && (
                 <div className="space-y-4">
                   <h2 className="text-2xl font-bold mb-4">Pre-Thesis Submissions</h2>
-                  <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-slate-700/30">
-                        <tr className="text-left text-sm text-slate-400">
-                          <th className="px-6 py-3 font-medium">Student</th>
-                          <th className="px-6 py-3 font-medium">Title</th>
-                          <th className="px-6 py-3 font-medium">Primary Supervisor</th>
-                          <th className="px-6 py-3 font-medium">Date</th>
-                          <th className="px-6 py-3 font-medium">Status</th>
-                          <th className="px-6 py-3 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preThesis.map(thesis => (
-                          <tr key={thesis.id} className="border-t border-slate-700 hover:bg-slate-800/30">
-                            <td className="px-6 py-4">{thesis.student}</td>
-                            <td className="px-6 py-4 text-slate-300">{thesis.title}</td>
-                            <td className="px-6 py-4 text-slate-400">{thesis.supervisor}</td>
-                            <td className="px-6 py-4 text-slate-400">{thesis.date}</td>
-                            <td className="px-6 py-4">
-                              <span className="px-3 py-1 bg-orange-600/20 text-orange-400 rounded-full text-sm">
-                                {thesis.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex gap-2">
-                                <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
-                                  <Download className="w-4 h-4" />
-                                  Download
-                                </button>
-                                <button 
-                                  onClick={() => handleReview(thesis)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 rounded text-sm transition-all"
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Review
-                                </button>
-                                <button 
-                                  onClick={() => sendToSupervisor(thesis)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all"
-                                >
-                                  <Send className="w-4 h-4" />
-                                  Send to Supervisor
-                                </button>
-                              </div>
-                            </td>
+                  {loadingPreThesis && (
+                    <div className="text-center py-8">
+                      <p className="text-lg text-slate-400">Loading pre-thesis submissions...</p>
+                    </div>
+                  )}
+                  {errorPreThesis && (
+                    <div className="bg-red-900/30 border border-red-700 text-red-400 p-4 rounded-lg">
+                      <p className="font-medium">Error: {errorPreThesis}</p>
+                      <p className="text-sm">Please try refreshing the page or contact support.</p>
+                    </div>
+                  )}
+                  {!loadingPreThesis && !errorPreThesis && preThesis.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-lg text-slate-400">No pre-thesis submissions found.</p>
+                    </div>
+                  )}
+                  {!loadingPreThesis && !errorPreThesis && preThesis.length > 0 && (
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-slate-700/30">
+                          <tr className="text-left text-sm text-slate-400">
+                            <th className="px-6 py-3 font-medium">Student</th>
+                            <th className="px-6 py-3 font-medium">Title</th>
+                            <th className="px-6 py-3 font-medium">Primary Supervisor</th>
+                            <th className="px-6 py-3 font-medium">Date</th>
+                            <th className="px-6 py-3 font-medium">Status</th>
+                            <th className="px-6 py-3 font-medium">Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {preThesis.map(thesis => (
+                            <tr key={thesis.id} className="border-t border-slate-700 hover:bg-slate-800/30">
+                              <td className="px-6 py-4">{thesis.student}</td>
+                              <td className="px-6 py-4 text-slate-300">{thesis.title}</td>
+                              <td className="px-6 py-4 text-slate-400">{thesis.supervisor}</td>
+                              <td className="px-6 py-4 text-slate-400">{thesis.date}</td>
+                              <td className="px-6 py-4">
+                                <span className="px-3 py-1 bg-orange-600/20 text-orange-400 rounded-full text-sm">
+                                  {thesis.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleView(thesis)} className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
+                                    <Eye className="w-4 h-4" />
+                                    View
+                                  </button>
+                                  <button 
+                                    onClick={() => handleReject(thesis)}
+                                    className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm transition-all"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Reject
+                                  </button>
+                                  <button 
+                                    onClick={() => sendToSupervisor(thesis)}
+                                    className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all"
+                                  >
+                                    <Send className="w-4 h-4" />
+                                    Send to Supervisor
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -471,57 +562,75 @@ export default function CoSupervisorDashboardPage() {
               {activeTab === 'final-thesis' && (
                 <div className="space-y-4">
                   <h2 className="text-2xl font-bold mb-4">Final Thesis Submissions</h2>
-                  <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-slate-700/30">
-                        <tr className="text-left text-sm text-slate-400">
-                          <th className="px-6 py-3 font-medium">Student</th>
-                          <th className="px-6 py-3 font-medium">Title</th>
-                          <th className="px-6 py-3 font-medium">Primary Supervisor</th>
-                          <th className="px-6 py-3 font-medium">Date</th>
-                          <th className="px-6 py-3 font-medium">Status</th>
-                          <th className="px-6 py-3 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {finalThesis.map(thesis => (
-                          <tr key={thesis.id} className="border-t border-slate-700 hover:bg-slate-800/30">
-                            <td className="px-6 py-4">{thesis.student}</td>
-                            <td className="px-6 py-4 text-slate-300">{thesis.title}</td>
-                            <td className="px-6 py-4 text-slate-400">{thesis.supervisor}</td>
-                            <td className="px-6 py-4 text-slate-400">{thesis.date}</td>
-                            <td className="px-6 py-4">
-                              <span className="px-3 py-1 bg-yellow-600/20 text-yellow-400 rounded-full text-sm">
-                                {thesis.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex gap-2">
-                                <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
-                                  <Download className="w-4 h-4" />
-                                  Download
-                                </button>
-                                <button 
-                                  onClick={() => handleReview(thesis)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 rounded text-sm transition-all"
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Review
-                                </button>
-                                <button 
-                                  onClick={() => sendToSupervisor(thesis)}
-                                  className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all"
-                                >
-                                  <Send className="w-4 h-4" />
-                                  Send to Supervisor
-                                </button>
-                              </div>
-                            </td>
+                  {loadingFinalThesis && (
+                    <div className="text-center py-8">
+                      <p className="text-lg text-slate-400">Loading final thesis submissions...</p>
+                    </div>
+                  )}
+                  {errorFinalThesis && (
+                    <div className="bg-red-900/30 border border-red-700 text-red-400 p-4 rounded-lg">
+                      <p className="font-medium">Error: {errorFinalThesis}</p>
+                      <p className="text-sm">Please try refreshing the page or contact support.</p>
+                    </div>
+                  )}
+                  {!loadingFinalThesis && !errorFinalThesis && finalThesis.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-lg text-slate-400">No final thesis submissions found.</p>
+                    </div>
+                  )}
+                  {!loadingFinalThesis && !errorFinalThesis && finalThesis.length > 0 && (
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-slate-700/30">
+                          <tr className="text-left text-sm text-slate-400">
+                            <th className="px-6 py-3 font-medium">Student</th>
+                            <th className="px-6 py-3 font-medium">Title</th>
+                            <th className="px-6 py-3 font-medium">Primary Supervisor</th>
+                            <th className="px-6 py-3 font-medium">Date</th>
+                            <th className="px-6 py-3 font-medium">Status</th>
+                            <th className="px-6 py-3 font-medium">Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {finalThesis.map(thesis => (
+                            <tr key={thesis.id} className="border-t border-slate-700 hover:bg-slate-800/30">
+                              <td className="px-6 py-4">{thesis.student}</td>
+                              <td className="px-6 py-4 text-slate-300">{thesis.title}</td>
+                              <td className="px-6 py-4 text-slate-400">{thesis.supervisor}</td>
+                              <td className="px-6 py-4 text-slate-400">{thesis.date}</td>
+                              <td className="px-6 py-4">
+                                <span className="px-3 py-1 bg-yellow-600/20 text-yellow-400 rounded-full text-sm">
+                                  {thesis.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleView(thesis)} className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-all">
+                                    <Eye className="w-4 h-4" />
+                                    View
+                                  </button>
+                                  <button 
+                                    onClick={() => handleReject(thesis)}
+                                    className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm transition-all"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Reject
+                                  </button>
+                                  <button 
+                                    onClick={() => sendToSupervisor(thesis)}
+                                    className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-all"
+                                  >
+                                    <Send className="w-4 h-4" />
+                                    Send to Supervisor
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -592,28 +701,28 @@ export default function CoSupervisorDashboardPage() {
       {/* Footer */}
       <Footer />
 
-      {/* Review Modal */}
-      {reviewModal && selectedDocument && (
+      {/* Rejection Modal */}
+      {rejectionModal && selectedDocument && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-xl max-w-2xl w-full p-6 border border-slate-700">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-xl font-bold">Review Document</h3>
+                <h3 className="text-xl font-bold">Reject Document</h3>
                 <p className="text-slate-400 text-sm mt-1">{selectedDocument.title}</p>
                 <p className="text-slate-500 text-xs mt-1">Student: {selectedDocument.student}</p>
                 <p className="text-slate-500 text-xs">Primary Supervisor: {selectedDocument.supervisor}</p>
               </div>
-              <button onClick={() => setReviewModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setRejectionModal(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Co-Supervisor Review Comments</label>
+                <label className="block text-sm font-medium mb-2">Feedback</label>
                 <textarea 
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-32 focus:border-teal-500 focus:outline-none"
-                  placeholder="Enter your review comments, feedback, and specialized insights..."
+                  placeholder="Enter your feedback for rejection..."
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
                 />
@@ -621,25 +730,11 @@ export default function CoSupervisorDashboardPage() {
 
               <div className="flex gap-3 pt-4">
                 <button 
-                  onClick={() => submitReview('approved')}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-all"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Approve
-                </button>
-                <button 
-                  onClick={() => submitReview('revision')}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-all"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  Request Revision
-                </button>
-                <button 
-                  onClick={() => submitReview('concerns')}
+                  onClick={() => submitRejection('rejected')}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
                 >
                   <XCircle className="w-4 h-4" />
-                  Has Concerns
+                  Reject
                 </button>
               </div>
             </div>
@@ -654,6 +749,12 @@ export default function CoSupervisorDashboardPage() {
                 onClose={handleCloseStudentView}
               />
             )}
+      <FileViewer 
+        isOpen={isFileViewerOpen}
+        onClose={() => setIsFileViewerOpen(false)}
+        fileUrl={fileToViewUrl}
+        fileType={fileToViewType}
+      />
     </div>
   );
 }

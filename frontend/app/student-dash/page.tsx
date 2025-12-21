@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useApi } from '@/app/hooks/useApi';
 import {
   Menu,
   X,
@@ -13,74 +15,194 @@ import {
   XCircle,
   AlertCircle,
   Send,
-  Download
+  Download,
+  MessageSquare
 } from 'lucide-react';
+import FileViewer from '@/app/components/FileViewer'; // Import the FileViewer component
 
 interface Submission {
   id: number;
   title: string;
   type: string;
   date: string;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'Under Review' | 'Revision Required';
+  status: 'pending' | 'approved' | 'rejected';
   remarks?: string;
+  document_url?: string; // Add document_url to the interface
+}
+
+interface Feedback {
+  id: number;
+  submission_id: number;
+  comment: string;
+  created_at: string;
 }
 
 export default function StudentDashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [uploadModal, setUploadModal] = useState(false);
-  const [uploadType, setUploadType] = useState('');
+  const [uploadType, setUploadType] = useState<'Application' | 'Proposal/Report' | 'Pre-Thesis' | 'Final-Thesis' | ''>('');
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadAbstract, setUploadAbstract] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewModal, setViewModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback[]>([]);
+  const [passwordFormData, setPasswordFormData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState('');
+  const [applications, setApplications] = useState<Submission[]>([]);
+  const [proposals, setProposals] = useState<Submission[]>([]);
+  const [reports, setReports] = useState<Submission[]>([]);
+  const [preThesis, setPreThesis] = useState<Submission[]>([]);
+  const [finalThesis, setFinalThesis] = useState<Submission[]>([]);
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
+  const [fileToViewUrl, setFileToViewUrl] = useState('');
+  const [fileToViewType, setFileToViewType] = useState('');
 
-  // Mock data - Replace with API calls
-  const applications: Submission[] = [
-    { id: 1, title: 'PhD Application Form', type: 'Application', date: '2024-01-15', status: 'Approved', remarks: 'Application accepted. Please proceed with proposal.' },
-    { id: 2, title: 'Entrance Exam Scores', type: 'Document', date: '2024-01-10', status: 'Approved' },
-    { id: 3, title: 'Academic Transcripts', type: 'Document', date: '2024-01-12', status: 'Under Review' },
-  ];
+  const apiFetch = useApi();
+  const router = useRouter();
 
-  const proposals: Submission[] = [
-    { id: 1, title: 'Research Proposal - Initial', type: 'Proposal', date: '2024-02-01', status: 'Approved', remarks: 'Well structured proposal. Proceed to next phase.' },
-    { id: 2, title: 'Progress Report - Month 3', type: 'Report', date: '2024-05-01', status: 'Approved' },
-    { id: 3, title: 'Progress Report - Month 6', type: 'Report', date: '2024-08-01', status: 'Revision Required', remarks: 'Please add more details on methodology section.' },
-    { id: 4, title: 'Progress Report - Month 9', type: 'Report', date: '2024-11-01', status: 'Under Review' },
-  ];
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      router.push('/student-login');
+    }
+  }, [router]);
 
-  const preThesis: Submission[] = [
-    { id: 1, title: 'Pre-Thesis Document', type: 'Pre-Thesis', date: '2024-10-15', status: 'Under Review', remarks: 'Submitted to supervisor for initial review.' },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await apiFetch(`/api/student/documents`);
+        const data = await res.json();
+        if (data.success) {
+          setApplications(data.data.filter((doc: any) => doc.type === 'Application'));
+          setProposals(data.data.filter((doc: any) => doc.type === 'Proposal/Report'));
+          setPreThesis(data.data.filter((doc: any) => doc.type === 'Pre-Thesis'));
+          setFinalThesis(data.data.filter((doc: any) => doc.type === 'Final-Thesis'));
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+    fetchData();
+  }, [apiFetch]);
 
-  const finalThesis: Submission[] = [
-    { id: 1, title: 'Final Thesis Submission', type: 'Final Thesis', date: '2024-12-01', status: 'Pending', remarks: 'Awaiting final approval from DSC.' },
-  ];
-
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedFile) {
       alert('Please select a file to upload');
       return;
     }
-    console.log('Uploading:', { type: uploadType, file: selectedFile });
-    alert(`${uploadType} uploaded successfully!`);
-    setUploadModal(false);
-    setSelectedFile(null);
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('type', uploadType);
+    formData.append('title', uploadTitle);
+    formData.append('abstract', uploadAbstract);
+
+    try {
+      await apiFetch(`/api/student/submissions`, {
+        method: 'POST',
+        body: formData,
+      });
+      alert(`${uploadType} uploaded successfully!`);
+      setUploadModal(false);
+      setSelectedFile(null);
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      alert('Failed to upload file');
+    }
   };
 
   const handleLogout = () => {
     if (confirm('Are you sure you want to logout?')) {
-      // Clear any stored authentication data
-      // localStorage.removeItem('authToken'); // Uncomment when you have auth
-      // sessionStorage.clear(); // Uncomment if needed
-      
-      // Redirect to home page
-      window.location.href = '/';
+      localStorage.removeItem('authToken');
+      router.push('/');
     }
   };
 
-  const viewSubmission = (submission: Submission) => {
-    setSelectedSubmission(submission);
-    setViewModal(true);
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
+      setPasswordChangeError('New passwords do not match');
+      return;
+    }
+
+    setPasswordChangeLoading(true);
+    setPasswordChangeError('');
+    setPasswordChangeSuccess('');
+
+    try {
+      const response = await apiFetch(`/api/me/password`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          oldPassword: passwordFormData.currentPassword,
+          newPassword: passwordFormData.newPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to change password');
+      }
+
+      setPasswordChangeSuccess('Password changed successfully!');
+      setPasswordFormData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (err: any) {
+      setPasswordChangeError(err.message || 'An error occurred');
+    } finally {
+      setPasswordChangeLoading(false);
+    }
+  };
+  
+  const handleViewFeedback = async (submission: Submission) => {
+    try {
+      const res = await apiFetch(`/api/student/submissions/${submission.id}/feedback`);
+      const data = await res.json();
+      if(data.success) {
+        setSelectedFeedback(data.data);
+        setFeedbackModalOpen(true);
+      } else {
+        alert(data.message || 'Failed to fetch feedback.');
+      }
+    } catch (error) {
+      console.error('Failed to fetch feedback:', error);
+      alert('Failed to fetch feedback');
+    }
+  };
+
+  const viewSubmission = async (submission: Submission) => {
+    try {
+      const res = await apiFetch(`/api/student/submissions/${submission.id}`);
+      const data = await res.json();
+      if(data.success) {
+        const fetchedSubmission = data.data;
+        if (fetchedSubmission.document_url) {
+          const fileRes = await apiFetch(`/api/student/submissions/${fetchedSubmission.id}/view`);
+          const blob = await fileRes.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          setFileToViewUrl(blobUrl);
+          setFileToViewType(fetchedSubmission.document_url.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'); // Basic inference
+          setIsFileViewerOpen(true);
+        } else {
+          setSelectedSubmission(fetchedSubmission);
+          setViewModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch submission details:', error);
+      alert('Failed to fetch submission details');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -178,7 +300,7 @@ export default function StudentDashboardPage() {
                   <div className="flex justify-between items-center mb-2">
                     <CheckCircle className="w-8 h-8" />
                     <span className="text-3xl font-bold">
-                      {[...applications, ...proposals, ...preThesis, ...finalThesis].filter(s => s.status === 'Approved').length}
+                      {[...applications, ...proposals, ...preThesis, ...finalThesis].filter(s => s.status === 'approved').length}
                     </span>
                   </div>
                   <p className="text-sm">Approved</p>
@@ -187,7 +309,7 @@ export default function StudentDashboardPage() {
                   <div className="flex justify-between items-center mb-2">
                     <Clock className="w-8 h-8" />
                     <span className="text-3xl font-bold">
-                      {[...applications, ...proposals, ...preThesis, ...finalThesis].filter(s => s.status === 'Under Review').length}
+                      {[...applications, ...proposals, ...preThesis, ...finalThesis].filter(s => s.status === 'pending').length}
                     </span>
                   </div>
                   <p className="text-sm">Under Review</p>
@@ -196,7 +318,7 @@ export default function StudentDashboardPage() {
                   <div className="flex justify-between items-center mb-2">
                     <AlertCircle className="w-8 h-8" />
                     <span className="text-3xl font-bold">
-                      {[...applications, ...proposals, ...preThesis, ...finalThesis].filter(s => s.status === 'Revision Required').length}
+                      {[...applications, ...proposals, ...preThesis, ...finalThesis].filter(s => s.status === 'rejected').length}
                     </span>
                   </div>
                   <p className="text-sm">Needs Revision</p>
@@ -269,13 +391,24 @@ export default function StudentDashboardPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <button 
-                            onClick={() => viewSubmission(app)}
-                            className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                          >
-                            <Eye className="w-4 h-4" />
-                            View
-                          </button>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => viewSubmission(app)}
+                              className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View
+                            </button>
+                            {(app.status === 'approved' || app.status === 'rejected') && (
+                              <button 
+                                onClick={() => handleViewFeedback(app)}
+                                className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                                Feedback
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -322,13 +455,24 @@ export default function StudentDashboardPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <button 
-                            onClick={() => viewSubmission(prop)}
-                            className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                          >
-                            <Eye className="w-4 h-4" />
-                            View Details
-                          </button>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => viewSubmission(prop)}
+                              className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View 
+                            </button>
+                            {(prop.status === 'approved' || prop.status === 'rejected') && (
+                              <button 
+                                onClick={() => handleViewFeedback(prop)}
+                                className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                                Feedback
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -374,17 +518,22 @@ export default function StudentDashboardPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            <button className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-                              <Download className="w-4 h-4" />
-                              Download
-                            </button>
                             <button 
                               onClick={() => viewSubmission(thesis)}
-                              className="flex items-center gap-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm"
+                              className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
                             >
                               <Eye className="w-4 h-4" />
-                              Status
+                              View
                             </button>
+                            {(thesis.status === 'approved' || thesis.status === 'rejected') && (
+                              <button 
+                                onClick={() => handleViewFeedback(thesis)}
+                                className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                                Feedback
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -401,7 +550,7 @@ export default function StudentDashboardPage() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Final Thesis Submission</h2>
                 <button 
-                  onClick={() => { setUploadType('Final Thesis'); setUploadModal(true); }}
+                  onClick={() => { setUploadType('Final-Thesis'); setUploadModal(true); }}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
                 >
                   <Upload className="w-4 h-4" />
@@ -431,17 +580,22 @@ export default function StudentDashboardPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            <button className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-                              <Download className="w-4 h-4" />
-                              Download
-                            </button>
                             <button 
                               onClick={() => viewSubmission(thesis)}
                               className="flex items-center gap-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm"
                             >
                               <Eye className="w-4 h-4" />
-                              Status
+                              View
                             </button>
+                            {(thesis.status === 'approved' || thesis.status === 'rejected') && (
+                              <button 
+                                onClick={() => handleViewFeedback(thesis)}
+                                className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                                Feedback
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -457,37 +611,48 @@ export default function StudentDashboardPage() {
             <div className="max-w-3xl mx-auto">
               <h2 className="text-2xl font-bold mb-6">Settings</h2>
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Current Password</label>
-                      <input 
-                        type="password" 
-                        placeholder="Enter current password"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">New Password</label>
-                      <input 
-                        type="password" 
-                        placeholder="Enter new password"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Confirm New Password</label>
-                      <input 
-                        type="password" 
-                        placeholder="Confirm new password"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                    <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm">
-                      Update Password
-                    </button>
+                <h3 className="text-lg font-semibold mb-4">Change Password</h3>
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Current Password</label>
+                    <input 
+                      type="password"
+                      name="currentPassword"
+                      value={passwordFormData.currentPassword}
+                      onChange={e => setPasswordFormData({...passwordFormData, currentPassword: e.target.value})}
+                      placeholder="Enter current password"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
+                    />
                   </div>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">New Password</label>
+                    <input 
+                      type="password"
+                      name="newPassword"
+                      value={passwordFormData.newPassword}
+                      onChange={e => setPasswordFormData({...passwordFormData, newPassword: e.target.value})}
+                      placeholder="Enter new password"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+                    <input 
+                      type="password"
+                      name="confirmPassword"
+                      value={passwordFormData.confirmPassword}
+                      onChange={e => setPasswordFormData({...passwordFormData, confirmPassword: e.target.value})}
+                      placeholder="Confirm new password"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  {passwordChangeError && <p className="text-red-500 text-sm">{passwordChangeError}</p>}
+                  {passwordChangeSuccess && <p className="text-green-500 text-sm">{passwordChangeSuccess}</p>}
+                  <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm" disabled={passwordChangeLoading}>
+                    {passwordChangeLoading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </form>
+              </div>
             </div>
           )}
         </div>
@@ -510,6 +675,8 @@ export default function StudentDashboardPage() {
                 <input 
                   type="text" 
                   placeholder="Enter document title"
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
                 />
               </div>
@@ -525,6 +692,8 @@ export default function StudentDashboardPage() {
                 <label className="block text-sm font-medium mb-2">Description (Optional)</label>
                 <textarea 
                   placeholder="Add any additional notes..."
+                  value={uploadAbstract}
+                  onChange={(e) => setUploadAbstract(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 min-h-24 focus:border-blue-500 focus:outline-none"
                 />
               </div>
@@ -575,6 +744,42 @@ export default function StudentDashboardPage() {
                 <p className="text-sm text-slate-400 mb-2">Submission Date</p>
                 <p className="text-slate-200">{selectedSubmission.date}</p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* File Viewer Modal */}
+      <FileViewer 
+        isOpen={isFileViewerOpen}
+        onClose={() => setIsFileViewerOpen(false)}
+        fileUrl={fileToViewUrl}
+        fileType={fileToViewType}
+      />
+
+      {/* Feedback Modal */}
+      {feedbackModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-xl max-w-2xl w-full p-6 border border-slate-700">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold">Feedback</h3>
+              </div>
+              <button onClick={() => setFeedbackModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              {selectedFeedback.length > 0 ? (
+                selectedFeedback.map((feedback) => (
+                  <div key={feedback.id} className="bg-slate-900/50 rounded-lg p-4">
+                    <p className="text-slate-200">{feedback.comment}</p>
+                    <p className="text-sm text-slate-400 mt-2">{new Date(feedback.created_at).toLocaleString()}</p>
+                  </div>
+                ))
+              ) : (
+                <p>No feedback available.</p>
+              )}
             </div>
           </div>
         </div>

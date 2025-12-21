@@ -8,6 +8,7 @@ export interface Application {
     status: ApplicationStatus;
     submission_date: Date;
     details: string | null;
+    student_name?: string; // Add student_name
 }
 
 export interface ApplicationCreateDTO {

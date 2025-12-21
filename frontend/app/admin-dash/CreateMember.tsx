@@ -81,8 +81,8 @@ export default function CreateMember({ isOpen, onClose, onSuccess }: CreateMembe
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          role: 'supervisor', // Defaulting to supervisor for now, could be a dropdown later
-          // uniqueId is not handled by the backend for non-student users yet
+          role: 'dsc_member', // Defaulting to member
+          uniqueId: formData.uniqueId
         })
       });
 

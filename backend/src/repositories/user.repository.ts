@@ -14,24 +14,51 @@ export const UserRepository = {
 
   async create(user: UserCreateDTO, passwordHash: string): Promise<number> {
     const [result] = await pool.execute(
-      'INSERT INTO users (name, email, role, password_hash) VALUES (?, ?, ?, ?)',
-      [user.name, user.email, user.role, passwordHash]
+      'INSERT INTO users (name, email, role, password_hash, unique_id) VALUES (?, ?, ?, ?, ?)',
+      [user.name, user.email, user.role, passwordHash, user.uniqueId || null]
     );
     const insertResult = result as any;
     return insertResult.insertId;
   },
 
   async findById(id: number): Promise<User | null> {
+    const [rows] = await pool.execute(`
+      SELECT
+        u.id,
+        u.email,
+        u.name,
+        u.role,
+        u.unique_id AS uniqueId,
+        u.created_at,
+        u.updated_at
+      FROM users u
+      WHERE u.id = ?
+    `, [id]);
+    const users = rows as User[];
+    return users.length > 0 ? users[0] : null;
+  },
+
+  async findUserWithPassword(id: number): Promise<User | null> {
     const [rows] = await pool.execute(
-        'SELECT id, email, name, role, created_at, updated_at FROM users WHERE id = ?',
-        [id]
+      'SELECT * FROM users WHERE id = ?',
+      [id]
     );
     const users = rows as User[];
     return users.length > 0 ? users[0] : null;
   },
 
   async findAll(): Promise<User[]> {
-    const [rows] = await pool.execute('SELECT id, email, name, role, created_at, updated_at FROM users');
+    const [rows] = await pool.execute(`
+      SELECT
+        u.id,
+        u.email,
+        u.name,
+        u.role,
+        u.unique_id AS uniqueId,
+        u.created_at,
+        u.updated_at
+      FROM users u
+    `);
     return rows as User[];
   },
 
@@ -76,5 +103,27 @@ export const UserRepository = {
       "SELECT id, email, name, role, created_at FROM users WHERE role <> 'admin'"
     );
     return rows as User[];
+  },
+
+  async findAllNonStudentsNonAdmins(): Promise<User[]> {
+    const [rows] = await pool.execute(
+      "SELECT id, email, name, role, unique_id as uniqueId, created_at FROM users WHERE role <> 'admin' AND role <> 'student'"
+    );
+    return rows as User[];
+  },
+
+  async findAllStudents(): Promise<any[]> {
+    const [rows] = await pool.execute(
+      "SELECT id, email, name, role, unique_id as uniqueId, created_at FROM users WHERE role = 'student'"
+    );
+    return rows as any[];
+  },
+
+  async findAdminUser(): Promise<User | null> {
+    const [rows] = await pool.execute(
+      "SELECT id, email, name, role, password_hash, created_at, updated_at FROM users WHERE role = 'admin' LIMIT 1"
+    );
+    const users = rows as User[];
+    return users.length > 0 ? users[0] : null;
   }
 };

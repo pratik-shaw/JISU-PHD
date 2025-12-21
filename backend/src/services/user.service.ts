@@ -4,6 +4,7 @@ import { StudentRepository } from '../repositories/student.repository';
 import { UserCreateDTO, User, UserRole } from '../models/user.model';
 import { ApiError } from '../middleware/errorHandler';
 import { AuthService } from './auth.service';
+import bcrypt from 'bcrypt';
 
 export const UserService = {
   async createUser(userDto: UserCreateDTO): Promise<User> {
@@ -16,7 +17,8 @@ export const UserService = {
     const userId = await UserRepository.create(userDto, passwordHash);
     
     if (userDto.role === 'student') {
-      await StudentRepository.create({ userId, studentId: userDto.universityId });
+      // studentId is no longer passed to StudentRepository.create
+      await StudentRepository.create({ userId });
     }
 
     const newUser = await UserRepository.findById(userId);
@@ -33,6 +35,10 @@ export const UserService = {
     return await UserRepository.findAll();
   },
 
+  async getAllStudents(): Promise<any[]> {
+    return await UserRepository.findAllStudents();
+  },
+
   async getUserById(id: number): Promise<User> {
     const user = await UserRepository.findById(id);
     if (!user) {
@@ -41,13 +47,20 @@ export const UserService = {
     return user;
   },
 
-  async updateUser(id: number, userDto: Partial<UserCreateDTO>): Promise<User> {
+  async updateUser(id: number, userDto: Partial<UserCreateDTO> & { dscId?: number | string }): Promise<User> {
     const user = await UserRepository.findById(id);
     if (!user) {
       throw new ApiError(404, 'User not found');
     }
 
-    const updatePayload: Partial<UserCreateDTO> & { password_hash?: string } = { ...userDto };
+    const updatePayload: Partial<UserCreateDTO> & { password_hash?: string; dscId?: number | string } = { ...userDto };
+    let dscIdToUpdate: number | null | undefined = undefined;
+
+    // Extract dscId if present and intended for a student
+    if (userDto.dscId !== undefined) {
+        dscIdToUpdate = userDto.dscId === '' ? null : Number(userDto.dscId);
+        delete updatePayload.dscId; // Remove dscId from user update payload
+    }
 
     if (userDto.password) {
       updatePayload.password_hash = await AuthService.hashPassword(userDto.password);
@@ -55,6 +68,17 @@ export const UserService = {
     }
     
     await UserRepository.update(id, updatePayload);
+
+    // If the user is a student and dscId was provided, update the student's dsc_id
+    if (user.role === 'student' && dscIdToUpdate !== undefined) {
+        const student = await StudentRepository.findByUserId(id); // Find student by user ID
+        if (student) {
+            await StudentRepository.updateStudentDscId(student.id, dscIdToUpdate);
+        } else {
+            // This case should ideally not happen if user.role is 'student'
+            throw new ApiError(500, 'Student profile not found for user');
+        }
+    }
 
     const updatedUser = await UserRepository.findById(id);
     if (!updatedUser) {
@@ -76,6 +100,10 @@ export const UserService = {
     return await UserRepository.findAllMembers();
   },
 
+  async getAllNonStudentsNonAdmins(): Promise<User[]> {
+    return await UserRepository.findAllNonStudentsNonAdmins();
+  },
+
   async updateUserRole(id: number, role: UserRole): Promise<User> {
     const user = await UserRepository.findById(id);
     if (!user) {
@@ -94,5 +122,20 @@ export const UserService = {
         throw new ApiError(500, 'Failed to fetch updated user');
     }
     return updatedUser;
+  },
+
+  async changePassword(userId: number, oldPassword: string, newPassword: string): Promise<void> {
+    const user = await UserRepository.findUserWithPassword(userId);
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    const isPasswordValid = await bcrypt.compare(oldPassword, user.password_hash);
+    if (!isPasswordValid) {
+      throw new ApiError(401, 'Invalid current password');
+    }
+
+    const newPasswordHash = await AuthService.hashPassword(newPassword);
+    await UserRepository.update(user.id, { password_hash: newPasswordHash });
   }
 };

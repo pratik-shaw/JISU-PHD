@@ -1,6 +1,6 @@
-'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useApi } from '@/app/hooks/useApi';
 import {
   Menu,
   X,
@@ -16,14 +16,7 @@ import {
   XCircle,
 } from 'lucide-react';
 
-interface Document {
-  id: number;
-  student: string;
-  supervisor: string;
-  title: string;
-  date: string;
-  status: string;
-}
+// ... (keep the rest of the interfaces)
 
 export default function DSCDashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -34,54 +27,83 @@ export default function DSCDashboardPage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [proposals, setProposals] = useState<Document[]>([]);
+  const [reports, setReports] = useState<Document[]>([]);
+  const [preThesis, setPreThesis] = useState<Document[]>([]);
+  const [finalThesis, setFinalThesis] = useState<Document[]>([]);
 
-  // Mock data - Replace with API calls
-  const proposals: Document[] = [
-    { id: 1, student: 'Alice Johnson', supervisor: 'Dr. Smith', title: 'ML in Healthcare', date: '2024-01-15', status: 'Pending' },
-    { id: 2, student: 'Bob Smith', supervisor: 'Dr. Jones', title: 'Quantum Computing', date: '2024-01-10', status: 'Reviewed' },
-  ];
+  const apiFetch = useApi();
+  const router = useRouter();
 
-  const reports: Document[] = [
-    { id: 1, student: 'Alice Johnson', supervisor: 'Dr. Smith', title: 'Q1 Progress Report', date: '2024-02-01', status: 'Pending' },
-  ];
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      router.push('/member-login');
+    }
+  }, [router]);
 
-  const preThesis: Document[] = [
-    { id: 1, student: 'Bob Smith', supervisor: 'Dr. Jones', title: 'Pre-Thesis Submission', date: '2024-02-15', status: 'Pending' },
-  ];
-
-  const finalThesis: Document[] = [
-    { id: 1, student: 'Carol White', supervisor: 'Dr. Brown', title: 'Final Thesis', date: '2024-03-01', status: 'Pending' },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/dsc-member/documents`);
+        const data = await res.json();
+        if (data.success) {
+          setProposals(data.data.filter((doc: any) => doc.type === 'proposal'));
+          setReports(data.data.filter((doc: any) => doc.type === 'report'));
+          setPreThesis(data.data.filter((doc: any) => doc.type === 'pre-thesis'));
+          setFinalThesis(data.data.filter((doc: any) => doc.type === 'final-thesis'));
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+    fetchData();
+  }, [apiFetch]);
 
   const handleReview = (doc: Document) => {
     setSelectedDocument(doc);
     setReviewModal(true);
   };
 
-  const submitReview = (decision: string) => {
-    console.log('Review:', { document: selectedDocument, decision, comments: reviewText });
-    alert(`Review submitted: ${decision.toUpperCase()}`);
-    setReviewModal(false);
-    setReviewText('');
+  const submitReview = async (decision: string) => {
+    try {
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/dsc-member/reviews`, {
+        method: 'POST',
+        body: JSON.stringify({
+          documentId: selectedDocument?.id,
+          decision,
+          comments: reviewText,
+        }),
+      });
+      alert(`Review submitted: ${decision.toUpperCase()}`);
+      setReviewModal(false);
+      setReviewText('');
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+      alert('Failed to submit review');
+    }
   };
 
-  const sendToAdmin = (doc: Document) => {
-    console.log('Sending to Admin:', doc);
-    alert(`"${doc.title}" has been approved and sent to Admin for final approval`);
+  const sendToAdmin = async (doc: Document) => {
+    try {
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/dsc-member/documents/${doc.id}/forward`, {
+        method: 'POST',
+      });
+      alert(`"${doc.title}" has been approved and sent to Admin for final approval`);
+    } catch (error) {
+      console.error('Failed to forward document:', error);
+      alert('Failed to forward document');
+    }
   };
 
   const handleLogout = () => {
     if (confirm('Are you sure you want to logout?')) {
-      // Clear any stored authentication data
-      // localStorage.removeItem('authToken'); // Uncomment when you have auth
-      // sessionStorage.clear(); // Uncomment if needed
-      
-      // Redirect to home page
-      window.location.href = '/';
+      localStorage.removeItem('authToken');
+      router.push('/');
     }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     // Validate inputs
     if (!currentPassword || !newPassword || !confirmPassword) {
       alert('Please fill in all password fields');
@@ -98,14 +120,21 @@ export default function DSCDashboardPage() {
       return;
     }
 
-    // Here you would make an API call to change the password
-    console.log('Changing password...');
-    alert('Password changed successfully!');
-    
-    // Clear fields
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/me/password`, {
+        method: 'PUT',
+        body: JSON.stringify({ oldPassword: currentPassword, newPassword: newPassword }),
+      });
+      alert('Password changed successfully!');
+      
+      // Clear fields
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      alert('Failed to change password');
+    }
   };
 
   return (

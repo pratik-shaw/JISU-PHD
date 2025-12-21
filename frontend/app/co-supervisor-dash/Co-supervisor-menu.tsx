@@ -63,12 +63,7 @@ export default function CoSupervisorMenu({ sidebarOpen, activeTab, onTabChangeAc
       tab: 'proposals',
       description: 'Review research proposals'
     },
-    { 
-      icon: ClipboardCheck, 
-      label: 'Reports', 
-      tab: 'reports',
-      description: 'Review progress reports'
-    },
+
     { 
       icon: BookOpen, 
       label: 'Pre-Thesis', 

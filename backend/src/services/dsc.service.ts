@@ -66,5 +66,13 @@ export const DscService = {
 
   async removeMemberFromDsc(userId: number, dscId: number): Promise<void> {
     await DscRepository.removeMember(userId, dscId);
+  },
+
+  async getDscMembers(dscId: number): Promise<any[]> {
+    return await DscRepository.findMembersByDscId(dscId);
+  },
+
+  async getDscStudents(dscId: number): Promise<any[]> {
+    return await DscRepository.findStudentsByDscId(dscId);
   }
 };

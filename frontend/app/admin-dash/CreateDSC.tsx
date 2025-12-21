@@ -13,14 +13,15 @@ interface Student {
   id: number;
   name: string;
   email: string;
-  universityId?: string;
+  uniqueId?: string;
 }
 
 interface Member {
   id: number;
   name: string;
   email: string;
-  currentRole: string;
+  role: string;
+  uniqueId?: string;
 }
 
 interface SelectedStudent {
@@ -60,23 +61,15 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
   const fetchData = async () => {
     setFetchingData(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setStudents([
-        { id: 1, name: 'John Doe', email: 'john.doe@university.edu', universityId: 'STU001' },
-        { id: 2, name: 'Jane Smith', email: 'jane.smith@university.edu', universityId: 'STU002' },
-        { id: 3, name: 'Mike Johnson', email: 'mike.j@university.edu', universityId: 'STU003' },
-        { id: 4, name: 'Sarah Williams', email: 'sarah.w@university.edu', universityId: 'STU004' },
-        { id: 5, name: 'David Brown', email: 'david.b@university.edu', universityId: 'STU005' }
+      const token = localStorage.getItem('authToken');
+      const [studentsResponse, membersResponse] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/members`, { headers: { 'Authorization': `Bearer ${token}` } }),
       ]);
-
-      setMembers([
-        { id: 10, name: 'Dr. Robert Smith', email: 'robert.s@university.edu', currentRole: 'Faculty' },
-        { id: 11, name: 'Dr. Emily Johnson', email: 'emily.j@university.edu', currentRole: 'Supervisor' },
-        { id: 12, name: 'Dr. Michael Brown', email: 'michael.b@university.edu', currentRole: 'Co-Supervisor' },
-        { id: 13, name: 'Dr. Sarah Davis', email: 'sarah.d@university.edu', currentRole: 'Faculty' },
-        { id: 14, name: 'Dr. James Wilson', email: 'james.w@university.edu', currentRole: 'Faculty' },
-        { id: 15, name: 'Dr. Lisa Anderson', email: 'lisa.a@university.edu', currentRole: 'Faculty' }
-      ]);
+      const studentsData = await studentsResponse.json();
+      if (studentsData.success) setStudents(studentsData.data);
+      const membersData = await membersResponse.json();
+      if (membersData.success) setMembers(membersData.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
       console.error('Error fetching data:', err);
@@ -145,26 +138,52 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
       return;
     }
 
-    if (selectedStudents.length === 0) {
-      setError('Please add at least one student to the DSC');
-      return;
-    }
-
-    if (selectedMembers.length === 0) {
-      setError('Please add at least one member to the DSC');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Bulk DSC Creation:', {
-        ...formData,
-        students: selectedStudents,
-        members: selectedMembers
+      const token = localStorage.getItem('authToken');
+      const dscResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: formData.dscName,
+          description: formData.description,
+          formation_date: formData.formationDate,
+        }),
       });
+
+      if (!dscResponse.ok) {
+        const errorData = await dscResponse.json();
+        throw new Error(errorData.message || 'Failed to create DSC');
+      }
+
+      const dscData = await dscResponse.json();
+      const dscId = dscData.data.id;
+
+      // Add members to the new DSC
+      for (const member of selectedMembers) {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/members`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            userId: member.memberId,
+            dscId: dscId,
+            role: 'Member', // Default role, can be changed later
+          }),
+        });
+      }
+      
+      // TODO: Associate students with the DSC. This will likely require another API endpoint.
+      // For now, we'll just log the students that would be associated.
+      console.log('Students to associate with DSC:', selectedStudents);
+
 
       if (onSuccess) onSuccess();
       
@@ -177,7 +196,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
       setSelectedMembers([]);
       
       onClose();
-      alert(`Successfully created ${selectedStudents.length} DSC(s)! You can now assign supervisors and co-supervisors.`);
+      alert(`Successfully created DSC and added ${selectedMembers.length} members!`);
 
     } catch (err: any) {
       setError(err.message || 'An error occurred while creating DSCs');
@@ -288,7 +307,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
                     <option value="">Select a student</option>
                     {students.map((student) => (
                       <option key={student.id} value={student.id}>
-                        {student.name} ({student.universityId})
+                        {student.name} ({student.uniqueId})
                       </option>
                     ))}
                   </select>
@@ -342,7 +361,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
                     <option value="">Select a member</option>
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.name} - {member.currentRole}
+                        {member.name} - {member.role} ({member.uniqueId})
                       </option>
                     ))}
                   </select>

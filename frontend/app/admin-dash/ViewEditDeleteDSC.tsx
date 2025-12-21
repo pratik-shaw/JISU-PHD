@@ -56,37 +56,21 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
   }, [isOpen, dsc]);
 
   const fetchDSCDetails = async () => {
+    if (!dsc) return;
     setFetchingData(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Mock data - Replace with actual API call
-      setMembers([
-        { id: 10, name: 'Dr. Robert Smith', email: 'robert.s@university.edu', role: 'Supervisor', department: 'Computer Science' },
-        { id: 11, name: 'Dr. Emily Johnson', email: 'emily.j@university.edu', role: 'Co-Supervisor', department: 'AI & ML' },
-        { id: 12, name: 'Dr. Michael Brown', email: 'michael.b@university.edu', role: 'Member', department: 'Data Science' }
+      const token = localStorage.getItem('authToken');
+      const [membersResponse, studentsResponse] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/${dsc.id}/members`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/${dsc.id}/students`, { headers: { 'Authorization': `Bearer ${token}` } }),
       ]);
 
-      setStudents([
-        { 
-          id: 1, 
-          name: 'John Doe', 
-          email: 'john.doe@university.edu', 
-          universityId: 'STU001', 
-          department: 'Computer Science',
-          supervisor: 'Dr. Robert Smith',
-          coSupervisors: ['Dr. Emily Johnson']
-        },
-        { 
-          id: 2, 
-          name: 'Jane Smith', 
-          email: 'jane.smith@university.edu', 
-          universityId: 'STU002', 
-          department: 'AI & ML',
-          supervisor: 'Dr. Robert Smith',
-          coSupervisors: ['Dr. Michael Brown']
-        }
-      ]);
+      const membersData = await membersResponse.json();
+      if (membersData.success) setMembers(membersData.data);
+      
+      const studentsData = await studentsResponse.json();
+      if (studentsData.success) setStudents(studentsData.data);
+
     } catch (err: any) {
       setError(err.message || 'Failed to load DSC details');
     } finally {
@@ -112,8 +96,20 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Updating DSC:', { id: dsc.id, ...formData });
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/${dsc.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update DSC');
+      }
 
       if (onSuccess) onSuccess();
       onClose();
@@ -135,8 +131,18 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Deleting DSC:', dsc.id);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/${dsc.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete DSC');
+      }
 
       if (onSuccess) onSuccess();
       onClose();

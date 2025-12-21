@@ -19,7 +19,7 @@ interface Student {
   id: number;
   name: string;
   email: string;
-  universityId: string;
+  uniqueId: string;
   department: string;
 }
 
@@ -29,6 +29,7 @@ interface Faculty {
   email: string;
   department: string;
   designation: string;
+  uniqueId?: string;
 }
 
 interface StudentAssignment {
@@ -61,12 +62,14 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
   const fetchDSCs = async () => {
     setFetchingData(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setDSCs([
-        { id: 1, name: 'DSC Committee A', description: 'Computer Science & AI', createdDate: '2024-01-15' },
-        { id: 2, name: 'DSC Committee B', description: 'Biotechnology & Life Sciences', createdDate: '2024-02-20' },
-        { id: 3, name: 'DSC Committee C', description: 'Physics & Mathematics', createdDate: '2024-03-10' }
-      ]);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setDSCs(data.data);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load DSCs');
     } finally {
@@ -76,17 +79,14 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
 
   const fetchStudents = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setStudents([
-        { id: 1, name: 'John Doe', email: 'john.doe@university.edu', universityId: 'STU001', department: 'Computer Science' },
-        { id: 2, name: 'Jane Smith', email: 'jane.smith@university.edu', universityId: 'STU002', department: 'Computer Science' },
-        { id: 3, name: 'Mike Johnson', email: 'mike.j@university.edu', universityId: 'STU003', department: 'AI & ML' },
-        { id: 4, name: 'Sarah Williams', email: 'sarah.w@university.edu', universityId: 'STU004', department: 'Data Science' },
-        { id: 5, name: 'Robert Brown', email: 'robert.b@university.edu', universityId: 'STU005', department: 'Computer Science' },
-        { id: 6, name: 'Emily Davis', email: 'emily.d@university.edu', universityId: 'STU006', department: 'AI & ML' },
-        { id: 7, name: 'David Wilson', email: 'david.w@university.edu', universityId: 'STU007', department: 'Data Science' },
-        { id: 8, name: 'Lisa Anderson', email: 'lisa.a@university.edu', universityId: 'STU008', department: 'Computer Science' }
-      ]);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setStudents(data.data);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load students');
     }
@@ -94,15 +94,14 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
 
   const fetchFaculty = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setFaculty([
-        { id: 10, name: 'Dr. Robert Smith', email: 'robert.s@university.edu', department: 'Computer Science', designation: 'Professor' },
-        { id: 11, name: 'Dr. Emily Johnson', email: 'emily.j@university.edu', department: 'AI & ML', designation: 'Associate Professor' },
-        { id: 12, name: 'Dr. Michael Brown', email: 'michael.b@university.edu', department: 'Data Science', designation: 'Professor' },
-        { id: 13, name: 'Dr. Sarah Davis', email: 'sarah.d@university.edu', department: 'Computer Science', designation: 'Assistant Professor' },
-        { id: 14, name: 'Dr. James Wilson', email: 'james.w@university.edu', department: 'AI & ML', designation: 'Professor' },
-        { id: 15, name: 'Dr. Lisa Anderson', email: 'lisa.a@university.edu', department: 'Computer Science', designation: 'Associate Professor' }
-      ]);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=faculty`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setFaculty(data.data);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load faculty');
     }
@@ -210,16 +209,82 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const assignmentData = Array.from(assignments.entries()).map(([studentId, assignment]) => ({
-        dscId: selectedDSC,
-        studentId,
-        supervisors: assignment.supervisors,
-        coSupervisors: assignment.coSupervisors
-      }));
+      const token = localStorage.getItem('authToken');
+      const assignmentPromises = [];
 
-      console.log('Saving assignments:', assignmentData);
+      for (const [studentId, assignment] of assignments.entries()) {
+        for (const supervisorId of assignment.supervisors) {
+          assignmentPromises.push(
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/members`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                userId: supervisorId,
+                dscId: selectedDSC,
+                role: 'supervisor',
+              }),
+            })
+          );
+        }
+        for (const coSupervisorId of assignment.coSupervisors) {
+          assignmentPromises.push(
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/members`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                userId: coSupervisorId,
+                dscId: selectedDSC,
+                role: 'co_supervisor',
+              }),
+            })
+          );
+        }
+      }
+
+      const responses = await Promise.all(assignmentPromises);
+      
+      responses.forEach(response => {
+        if (!response.ok) {
+          throw new Error('Failed to save one or more assignments.');
+        }
+      });
+
+      // After assigning roles in DSC, update the main user role
+      const roleUpdatePromises = [];
+      for (const [studentId, assignment] of assignments.entries()) {
+        for (const supervisorId of assignment.supervisors) {
+          roleUpdatePromises.push(
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${supervisorId}/role`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ role: 'supervisor' }),
+            })
+          );
+        }
+        for (const coSupervisorId of assignment.coSupervisors) {
+          roleUpdatePromises.push(
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${coSupervisorId}/role`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ role: 'co_supervisor' }),
+            })
+          );
+        }
+      }
+
+      await Promise.all(roleUpdatePromises);
 
       if (onSuccess) onSuccess();
       
@@ -251,7 +316,7 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
 
   const filteredStudents = students.filter(student => 
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.universityId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.uniqueId.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -389,7 +454,7 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <h5 className="text-white font-medium group-hover:text-purple-400 transition-colors">
-                                {student.name}
+                                {student.name} 
                               </h5>
                               {hasAssignment && (
                                 <span className="px-2 py-0.5 bg-green-600/20 text-green-400 rounded text-xs font-medium flex items-center gap-1">
@@ -399,7 +464,7 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
                               )}
                             </div>
                             <div className="flex items-center gap-4 text-sm text-slate-400">
-                              <span>{student.universityId}</span>
+                              <span>{student.uniqueId}</span>
                               <span>•</span>
                               <span>{student.department}</span>
                             </div>
@@ -452,7 +517,7 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
                   <div>
                     <h3 className="text-xl font-bold text-white mb-2">{currentStudent.name}</h3>
                     <div className="space-y-1 text-sm">
-                      <p className="text-slate-300">ID: {currentStudent.universityId}</p>
+                      <p className="text-slate-300">ID: {currentStudent.uniqueId}</p>
                       <p className="text-slate-300">Email: {currentStudent.email}</p>
                       <p className="text-slate-300">Department: {currentStudent.department}</p>
                     </div>
@@ -495,7 +560,7 @@ export default function AssignRoles({ isOpen, onClose, onSuccess }: AssignRolesP
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <p className="text-white font-medium">{member.name}</p>
-                            <p className="text-sm text-slate-400">{member.designation} • {member.department}</p>
+                            <p className="text-sm text-slate-400">{member.designation} • {member.department} ({member.uniqueId})</p>
                             <p className="text-xs text-slate-500 mt-1">{member.email}</p>
                           </div>
                           <div className="flex gap-2">

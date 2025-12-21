@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
+import { useApi } from '@/app/hooks/useApi';
 import { 
   GraduationCap, 
   Mail, 
@@ -43,6 +44,7 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const role = searchParams.get('role') || 'admin';
+  const apiFetch = useApi();
 
   // Form state management
   const [formData, setFormData] = useState<FormState>({
@@ -153,7 +155,7 @@ export default function AdminLoginPage() {
     try {
       // TODO: BACKEND REQUIRED - Make API call to login endpoint
       // Uncomment and implement below:
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,7 +165,6 @@ export default function AdminLoginPage() {
           password: formData.password,
           role: role,
         }),
-        credentials: 'include', // Include cookies in request
       });
 
       const data = await response.json();

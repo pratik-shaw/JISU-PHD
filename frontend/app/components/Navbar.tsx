@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useApi } from '@/app/hooks/useApi'; // Add this import
 import { GraduationCap, Menu, X, LogOut } from 'lucide-react';
 
 interface UserType {
@@ -15,6 +16,7 @@ interface UserType {
 
 export default function Navbar() {
   const router = useRouter();
+  const apiFetch = useApi(); // Initialize useApi
   const [user, setUser] = useState<UserType | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,9 +26,8 @@ export default function Navbar() {
       try {
         const token = localStorage.getItem('authToken');
         if (token) {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-            credentials: 'include'
+          const response = await apiFetch('/api/auth/me', { // Use apiFetch and relative URL
+            headers: { 'Authorization': `Bearer ${token}` }
           });
           const data = await response.json();
           if (data.success) {
@@ -43,19 +44,18 @@ export default function Navbar() {
     };
 
     checkAuthStatus();
-  }, []);
+  }, [apiFetch]); // Add apiFetch to dependency array
 
   const handleLogout = async () => {
     // Clear authentication and notify backend
     try {
       const token = localStorage.getItem('authToken');
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      await apiFetch('/api/auth/logout', { // Use apiFetch and relative URL
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        credentials: 'include'
+        }
       });
     } catch (error) {
       console.error('Logout failed:', error);
