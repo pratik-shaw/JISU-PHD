@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { X, Users, Calendar, FileText, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
 
 interface CreateDSCProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(false);
   const [error, setError] = useState('');
+  const apiFetch = useApi();
 
   useEffect(() => {
     if (isOpen) {
@@ -58,18 +60,43 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
     }
   }, [isOpen]);
 
+  const fetchStudents = async () => {
+    try {
+      const response = await apiFetch(`/api/users?role=student`);
+      const data = await response.json();
+      if (data.success) {
+        setStudents(data.data);
+        return response; // Return the full response for Promise.all
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load students');
+      console.error('Error fetching students:', err);
+      throw err; // Re-throw to be caught by fetchData's Promise.all
+    }
+  };
+
+  const fetchMembers = async () => {
+    try {
+      const response = await apiFetch(`/api/users/members`);
+      const data = await response.json();
+      if (data.success) {
+        setMembers(data.data);
+        return response; // Return the full response for Promise.all
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load members');
+      console.error('Error fetching members:', err);
+      throw err; // Re-throw to be caught by fetchData's Promise.all
+    }
+  };
+
   const fetchData = async () => {
     setFetchingData(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const [studentsResponse, membersResponse] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/members`, { headers: { 'Authorization': `Bearer ${token}` } }),
+      await Promise.all([
+        fetchStudents(),
+        fetchMembers(),
       ]);
-      const studentsData = await studentsResponse.json();
-      if (studentsData.success) setStudents(studentsData.data);
-      const membersData = await membersResponse.json();
-      if (membersData.success) setMembers(membersData.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
       console.error('Error fetching data:', err);
@@ -142,13 +169,8 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const dscResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs`, {
+      const dscResponse = await apiFetch(`/api/dscs`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name: formData.dscName,
           description: formData.description,
@@ -166,12 +188,8 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
 
       // Add members to the new DSC
       for (const member of selectedMembers) {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/members`, {
+        await apiFetch(`/api/dscs/members`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
           body: JSON.stringify({
             userId: member.memberId,
             dscId: dscId,

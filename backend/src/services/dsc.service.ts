@@ -47,7 +47,15 @@ export const DscService = {
     await DscRepository.remove(id);
   },
 
-  async addMemberToDsc(memberDto: DscMemberDTO): Promise<void> {
+    async removeAllSupervisors(dscId: number) {
+        return await DscRepository.removeAllSupervisors(dscId);
+    },
+
+    async removeAllMembers(dscId: number) {
+        return await DscRepository.removeAllMembers(dscId);
+    },
+    
+    async addMemberToDsc(member: { userId: number, dscId: number, role: 'supervisor' | 'co_supervisor' | 'member' }) {
     const user = await UserRepository.findById(memberDto.userId);
     if (!user) {
       throw new ApiError(404, 'User not found');

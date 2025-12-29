@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { X, User, Mail, Lock, Hash } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
 
 interface CreateStudentProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
             uniqueId: ''
           });  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const apiFetch = useApi();
 
   /**
    * Handle form input changes
@@ -65,17 +67,8 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        throw new Error('Authentication token not found.');
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
+      const response = await apiFetch(`/api/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,

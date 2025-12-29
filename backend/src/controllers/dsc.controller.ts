@@ -40,12 +40,24 @@ const deleteDsc = asyncHandler(async (req: Request, res: Response, next: NextFun
     res.status(204).send();
 });
 
+const removeAllSupervisors = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    await DscService.removeAllSupervisors(Number(req.params.id));
+    res.status(204).send();
+});
+
+const removeAllMembers = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    await DscService.removeAllMembers(Number(req.params.id));
+    res.status(204).send();
+});
+
 export const DscController = {
     createDsc,
     getAllDscs,
     getDscById,
     updateDsc,
     deleteDsc,
+    removeAllSupervisors,
+    removeAllMembers,
 
     addMemberToDsc: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
         await DscService.addMemberToDsc(req.body);

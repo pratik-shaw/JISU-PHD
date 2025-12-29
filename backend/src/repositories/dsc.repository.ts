@@ -63,6 +63,24 @@ export const DscRepository = {
     return deleteResult.affectedRows > 0;
   },
 
+  async removeAllSupervisors(dscId: number): Promise<boolean> {
+    const [result] = await pool.execute(
+      "DELETE FROM dsc_members WHERE dsc_id = ? AND role_in_dsc IN ('supervisor', 'co_supervisor')",
+      [dscId]
+    );
+    const deleteResult = result as any;
+    return deleteResult.affectedRows > 0;
+  },
+
+  async removeAllMembers(dscId: number): Promise<boolean> {
+    const [result] = await pool.execute(
+      "DELETE FROM dsc_members WHERE dsc_id = ?",
+      [dscId]
+    );
+    const deleteResult = result as any;
+    return deleteResult.affectedRows > 0;
+  },
+
   async findMembersByDscId(dscId: number): Promise<any[]> {
     const [rows] = await pool.execute(
       `SELECT u.id, u.name, u.email, dm.role_in_dsc as role

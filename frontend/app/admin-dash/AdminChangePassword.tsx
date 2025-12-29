@@ -34,13 +34,8 @@ export default function AdminChangePassword() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/me/password`, {
+      const response = await apiFetch(`/api/me/password`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           oldPassword: formData.currentPassword,
           newPassword: formData.newPassword,

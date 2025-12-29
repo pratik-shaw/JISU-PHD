@@ -71,7 +71,7 @@ export default function ViewEditDeleteUser({
   useEffect(() => {
     const fetchDscs = async () => {
       try {
-        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/dscs`);
+        const res = await apiFetch(`/api/admin/dscs`);
         const data = await res.json();
         if (data.success) {
           setDscs(data.data);
@@ -123,13 +123,8 @@ export default function ViewEditDeleteUser({
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${user?.id}`, {
+      const response = await apiFetch(`/api/users/${user?.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           ...formData,
           // Only send dscId if the user is a student and dscId is selected
@@ -169,16 +164,8 @@ export default function ViewEditDeleteUser({
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        throw new Error('Authentication token not found.');
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${user?.id}`, {
+      const response = await apiFetch(`/api/users/${user?.id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
       });
 
       if (!response.ok) {

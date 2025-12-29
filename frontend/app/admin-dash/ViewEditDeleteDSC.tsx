@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { X, Eye, Edit, Trash2, AlertCircle, Users, Calendar, FileText, UserCheck, Shield } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
 
 interface ViewEditDeleteDSCProps {
   isOpen: boolean;
@@ -42,13 +43,14 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
   const [fetchingData, setFetchingData] = useState(false);
   const [error, setError] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const apiFetch = useApi();
 
   useEffect(() => {
     if (isOpen && dsc) {
       setFormData({
         name: dsc.name || '',
         description: dsc.description || '',
-        formationDate: dsc.formationDate || '',
+        formationDate: dsc.formation_date ? new Date(dsc.formation_date).toISOString().split('T')[0] : '',
         status: dsc.status || 'Active'
       });
       fetchDSCDetails();
@@ -59,10 +61,9 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
     if (!dsc) return;
     setFetchingData(true);
     try {
-      const token = localStorage.getItem('authToken');
       const [membersResponse, studentsResponse] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/${dsc.id}/members`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/${dsc.id}/students`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        apiFetch(`/api/dscs/${dsc.id}/members`),
+        apiFetch(`/api/dscs/${dsc.id}/students`),
       ]);
 
       const membersData = await membersResponse.json();
@@ -96,13 +97,8 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/${dsc.id}`, {
+      const response = await apiFetch(`/api/dscs/${dsc.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify(formData),
       });
 
@@ -131,12 +127,8 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs/${dsc.id}`, {
+      const response = await apiFetch(`/api/dscs/${dsc.id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
       });
 
       if (!response.ok) {

@@ -100,28 +100,6 @@ export default function Navbar() {
             </span>
           </button>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            <button
-              onClick={() => handleNavigation('/')}
-              className="text-slate-300 hover:text-blue-400 font-medium transition-colors duration-200"
-            >
-              Home
-            </button>
-            <button
-              onClick={() => handleNavigation('/about')}
-              className="text-slate-300 hover:text-blue-400 font-medium transition-colors duration-200"
-            >
-              About
-            </button>
-            <button
-              onClick={() => handleNavigation('/contact')}
-              className="text-slate-300 hover:text-blue-400 font-medium transition-colors duration-200"
-            >
-              Contact
-            </button>
-          </div>
-
           {/* Desktop Auth Section */}
           <div className="hidden md:flex items-center gap-4">
             {user ? (

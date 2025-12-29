@@ -82,28 +82,28 @@ export default function AdminDashboardPage() {
     try {
       if (activeTab === 'dashboard') {
         const [statsResponse, activityResponse] = await Promise.all([
-          apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stats`),
-          apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/recent-activity`)
+          apiFetch(`/api/admin/stats`),
+          apiFetch(`/api/admin/recent-activity`)
         ]);
         const statsData = await statsResponse.json();
         if (statsData.success) setStats(statsData.data);
         const activityData = await activityResponse.json();
         if (activityData.success) setRecentUsers(activityData.data);
       } else if (activeTab === 'users') {
-        const usersResponse = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/users`);
+        const usersResponse = await apiFetch(`/api/users`);
         const usersData = await usersResponse.json();
         console.log('Users data:', usersData);
         if (usersData.success) setAllUsers(usersData.data);
       } else if (activeTab === 'dsc') {
-        const dscsResponse = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs`);
+        const dscsResponse = await apiFetch(`/api/dscs`);
         const dscsData = await dscsResponse.json();
         if (dscsData.success) setDscs(dscsData.data);
       } else if (activeTab === 'applications') {
-        const applicationsResponse = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/applications`);
+        const applicationsResponse = await apiFetch(`/api/applications`);
         const applicationsData = await applicationsResponse.json();
         if (applicationsData.success) setApplications(applicationsData.data);
       } else if (activeTab === 'roles') {
-        const membersResponse = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/users/members`);
+        const membersResponse = await apiFetch(`/api/users/members`);
         const membersData = await membersResponse.json();
         if (membersData.success) setMembers(membersData.data);
       }
@@ -128,7 +128,7 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/role`, {
+      const response = await apiFetch(`/api/users/${userId}/role`, {
         method: 'PUT',
         body: JSON.stringify({ role: newRole })
       });
@@ -387,8 +387,6 @@ export default function AdminDashboardPage() {
                       <thead className="bg-slate-700/30">
                         <tr className="text-left text-sm text-slate-400">
                           <th className="px-6 py-3 font-medium">DSC Name</th>
-                          <th className="px-6 py-3 font-medium">Students</th>
-                          <th className="px-6 py-3 font-medium">Members</th>
                           <th className="px-6 py-3 font-medium">Formation Date</th>
                           <th className="px-6 py-3 font-medium">Status</th>
                           <th className="px-6 py-3 font-medium">Actions</th>
@@ -401,18 +399,6 @@ export default function AdminDashboardPage() {
                               <div>
                                 <p className="font-medium">{dsc.name}</p>
                                 <p className="text-xs text-slate-400">{dsc.description}</p>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm">
-                                <p className="font-medium text-blue-400">{/* Placeholder */}</p>
-                                <p className="text-xs text-slate-400">{/* Placeholder */}</p>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm">
-                                <p className="font-medium text-purple-400">{/* Placeholder */}</p>
-                                {/* Placeholder */}
                               </div>
                             </td>
                             <td className="px-6 py-4 text-slate-400">{new Date(dsc.formation_date).toLocaleDateString()}</td>

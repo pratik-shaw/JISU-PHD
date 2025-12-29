@@ -61,7 +61,7 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
       let response;
       let data;
       if (applicationId) {
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/applications/${applicationId}`;
+        const url = `/api/applications/${applicationId}`;
         console.log('API call URL:', url);
         response = await apiFetch(url);
         console.log('API Response:', response);
@@ -75,7 +75,7 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
           console.log('Applications state after setting:', [data.data]);
         }
       } else {
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/applications`;
+        const url = `/api/applications`;
         console.log('API call URL:', url);
         response = await apiFetch(url);
         console.log('API Response:', response);
@@ -99,7 +99,7 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
     
     setIsLoading(true);
     try {
-      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/${selectedApplication.id}/status`, {
+      const response = await apiFetch(`/api/applications/${selectedApplication.id}/status`, {
         method: 'PUT',
         body: JSON.stringify({ status: 'approved', comment: reviewComments })
       });
@@ -137,7 +137,7 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
     
     setIsLoading(true);
     try {
-      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/${selectedApplication.id}/status`, {
+      const response = await apiFetch(`/api/applications/${selectedApplication.id}/status`, {
         method: 'PUT',
         body: JSON.stringify({ status: 'rejected', comment: reviewComments })
       });
@@ -336,11 +336,18 @@ export default function ReviewSystem({ isOpen, onClose, applicationId, onSuccess
                             Attached Document
                           </p>
                           <button 
-                            onClick={() => {
-                              console.log('Application document_url:', application.document_url);
-                              setFileToViewUrl(`${process.env.NEXT_PUBLIC_API_URL}/admin/submissions/${application.id}/view`);
-                              setFileToViewType(application.document_url!.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'); // Basic inference
-                              setIsFileViewerOpen(true);
+                            onClick={async () => {
+                              try {
+                                const res = await apiFetch(`/api/admin/submissions/${application.id}/view`);
+                                const blob = await res.blob();
+                                const blobUrl = URL.createObjectURL(blob);
+                                setFileToViewUrl(blobUrl);
+                                setFileToViewType(application.document_url!.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'); // Basic inference
+                                setIsFileViewerOpen(true);
+                              } catch (error) {
+                                console.error('Error fetching document for viewing:', error);
+                                alert('Failed to load document for viewing.');
+                              }
                             }}
                             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all text-sm flex items-center gap-2"
                           >
