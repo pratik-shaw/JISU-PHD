@@ -101,7 +101,18 @@ export default function AdminDashboardPage() {
       } else if (activeTab === 'applications') {
         const applicationsResponse = await apiFetch(`/api/applications`);
         const applicationsData = await applicationsResponse.json();
-        if (applicationsData.success) setApplications(applicationsData.data);
+        if (applicationsData.success) {
+          const filteredApplications = applicationsData.data.filter(
+            (app: any) => app.type === 'Application'
+          );
+          setApplications(filteredApplications);
+        }
+      } else if (activeTab === 'submissions') {
+        const submissionsResponse = await apiFetch(`/api/admin/submissions?status=pending,approved&type=Pre-Thesis,Final-Thesis`);
+        const submissionsData = await submissionsResponse.json();
+        if (submissionsData.success) {
+          setSubmissions(submissionsData.data);
+        }
       } else if (activeTab === 'roles') {
         const membersResponse = await apiFetch(`/api/users/members`);
         const membersData = await membersResponse.json();
@@ -513,24 +524,27 @@ export default function AdminDashboardPage() {
                             <td className="px-6 py-4 font-mono text-sm text-purple-400">{sub.id}</td>
                             <td className="px-6 py-4">
                               <div>
-                                <p className="font-medium">{/* Placeholder */}</p>
-                                <p className="text-xs text-slate-400">{/* Placeholder */}</p>
+                                <p className="font-medium">{sub.student_name}</p>
                               </div>
                             </td>
                             <td className="px-6 py-4 max-w-xs">
-                              <p className="truncate text-sm">{/* Placeholder */}</p>
+                              <p className="truncate text-sm">{sub.details}</p>
                             </td>
                             <td className="px-6 py-4">
                               <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs">
-                                {/* Placeholder */}
+                                {sub.type}
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-sm`}>
-                                {/* Placeholder */}
+                              <span className={`px-3 py-1 rounded-full text-sm ${
+                                sub.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' :
+                                sub.status === 'approved' ? 'bg-green-600/20 text-green-400' :
+                                'bg-red-600/20 text-red-400'
+                              }`}>
+                                {sub.status}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-slate-400">{/* Placeholder */}</td>
+                            <td className="px-6 py-4 text-slate-400">{new Date(sub.submission_date).toLocaleDateString()}</td>
                             <td className="px-6 py-4">
                               <button 
                                 onClick={() => openReviewSubmission(sub.id)}

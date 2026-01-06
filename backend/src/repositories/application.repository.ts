@@ -12,23 +12,43 @@ export const ApplicationRepository = {
     return insertResult.insertId;
   },
 
-  async findAll(): Promise<Application[]> {
-    const [rows] = await pool.execute(`
+  async findAll(filters: { status?: string; type?: string } = {}): Promise<Application[]> {
+    let query = `
       SELECT
         s.id,
         s.student_id,
         s.type,
         s.status,
         s.submission_date,
-        s.title,        -- assuming title in submissions table maps to applications title
-        s.abstract,     -- assuming abstract in submissions table maps to applications details
-        s.document_url, -- Include document_url
+        s.title,
+        s.abstract,
+        s.document_url,
         u.name as student_name
       FROM submissions s
       JOIN students st ON s.student_id = st.id
       JOIN users u ON st.user_id = u.id
-      WHERE s.type = 'Application'
-    `);
+    `;
+
+    const whereClauses: string[] = [];
+    const params: any[] = [];
+
+    if (filters.status) {
+      const statuses = filters.status.split(',');
+      whereClauses.push(`s.status IN (${statuses.map(() => '?').join(',')})`);
+      params.push(...statuses);
+    }
+
+    if (filters.type) {
+      const types = filters.type.split(',');
+      whereClauses.push(`s.type IN (${types.map(() => '?').join(',')})`);
+      params.push(...types);
+    }
+
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(' AND ')}`;
+    }
+
+    const [rows] = await pool.execute(query, params);
     return rows as Application[];
   },
 

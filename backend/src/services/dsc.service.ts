@@ -8,14 +8,16 @@ export const DscService = {
   async createDsc(dscDto: DscCreateDTO): Promise<DSC> {
     const dscId = await DscRepository.create(dscDto);
     const newDsc = await DscRepository.findById(dscId);
+
     if (!newDsc) {
       throw new ApiError(500, 'Failed to create DSC');
     }
+
     return newDsc;
   },
 
   async getAllDscs(): Promise<DSC[]> {
-    return await DscRepository.findAll();
+    return DscRepository.findAll();
   },
 
   async getDscById(id: number): Promise<DSC> {
@@ -31,11 +33,14 @@ export const DscService = {
     if (!dsc) {
       throw new ApiError(404, 'DSC not found');
     }
+
     await DscRepository.update(id, dscDto);
+
     const updatedDsc = await DscRepository.findById(id);
     if (!updatedDsc) {
-        throw new ApiError(500, 'Failed to fetch updated DSC');
+      throw new ApiError(500, 'Failed to fetch updated DSC');
     }
+
     return updatedDsc;
   },
 
@@ -44,31 +49,33 @@ export const DscService = {
     if (!dsc) {
       throw new ApiError(404, 'DSC not found');
     }
+
     await DscRepository.remove(id);
   },
 
-    async removeAllSupervisors(dscId: number) {
-        return await DscRepository.removeAllSupervisors(dscId);
-    },
+  async removeAllSupervisors(dscId: number): Promise<void> {
+    await DscRepository.removeAllSupervisors(dscId);
+  },
 
-    async removeAllMembers(dscId: number) {
-        return await DscRepository.removeAllMembers(dscId);
-    },
-    
-    async addMemberToDsc(member: { userId: number, dscId: number, role: 'supervisor' | 'co_supervisor' | 'member' }) {
+  async removeAllMembers(dscId: number): Promise<void> {
+    await DscRepository.removeAllMembers(dscId);
+  },
+
+  async addMemberToDsc(memberDto: DscMemberDTO): Promise<void> {
     const user = await UserRepository.findById(memberDto.userId);
     if (!user) {
       throw new ApiError(404, 'User not found');
     }
+
     if (user.role === 'student' || user.role === 'admin') {
-        throw new ApiError(400, 'Only faculty members can be added to a DSC');
+      throw new ApiError(400, 'Only faculty members can be added to a DSC');
     }
 
     const dsc = await DscRepository.findById(memberDto.dscId);
     if (!dsc) {
       throw new ApiError(404, 'DSC not found');
     }
-    
+
     await DscRepository.addMember(memberDto);
   },
 
@@ -77,10 +84,11 @@ export const DscService = {
   },
 
   async getDscMembers(dscId: number): Promise<any[]> {
-    return await DscRepository.findMembersByDscId(dscId);
+    return DscRepository.findMembersByDscId(dscId);
   },
 
   async getDscStudents(dscId: number): Promise<any[]> {
-    return await DscRepository.findStudentsByDscId(dscId);
+    return DscRepository.findStudentsByDscId(dscId);
   }
 };
+

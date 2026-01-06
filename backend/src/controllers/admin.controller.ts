@@ -50,6 +50,15 @@ const getDscs = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json({ success: true, data: dscs });
 });
 
+const getAllSubmissions = asyncHandler(async (req: Request, res: Response) => {
+  const { status, type } = req.query;
+  const submissions = await AdminService.getAllSubmissions({
+    status: status as string | undefined,
+    type: type as string | undefined,
+  });
+  res.status(200).json({ success: true, data: submissions });
+});
+
 export const AdminController = {
   getDashboardStats,
   getRecentUserActivity,
@@ -57,4 +66,5 @@ export const AdminController = {
   reviewSubmission,
   getSubmissionById,
   getDscs,
+  getAllSubmissions,
 };
