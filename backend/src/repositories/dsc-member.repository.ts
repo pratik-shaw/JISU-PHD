@@ -54,11 +54,43 @@ export class DscMemberRepository {
       JOIN dsc_members dsm ON st.dsc_id = dsm.dsc_id
       WHERE dsm.user_id = ? 
         AND s.status = 'approved'
-        AND s.type NOT IN ('Pre-Thesis', 'Final-Thesis')
+        AND s.type NOT IN ('pre-thesis', 'final-thesis')
       `,
       [dscMemberId]
     );
     console.log('Approved submissions query result:', (rows as any)[0]);
+    return (rows as any)[0].count;
+  }
+
+  async getPreThesisPendingDscApprovalCount(dscMemberId: number): Promise<number> {
+    console.log(`Fetching pre-thesis pending DSC approval count for dscMemberId: ${dscMemberId}`);
+    const [rows] = await db.query(
+      `
+      SELECT COUNT(s.id) as count
+      FROM submissions s
+      JOIN students st ON s.student_id = st.id
+      JOIN dsc_members dsm ON st.dsc_id = dsm.dsc_id
+      WHERE dsm.user_id = ? AND s.status = 'pending_dsc_approval' AND s.type = 'pre-thesis'
+      `,
+      [dscMemberId]
+    );
+    console.log('Pre-thesis pending DSC approval query result:', (rows as any)[0]);
+    return (rows as any)[0].count;
+  }
+
+  async getFinalThesisPendingDscApprovalCount(dscMemberId: number): Promise<number> {
+    console.log(`Fetching final thesis pending DSC approval count for dscMemberId: ${dscMemberId}`);
+    const [rows] = await db.query(
+      `
+      SELECT COUNT(s.id) as count
+      FROM submissions s
+      JOIN students st ON s.student_id = st.id
+      JOIN dsc_members dsm ON st.dsc_id = dsm.dsc_id
+      WHERE dsm.user_id = ? AND s.status = 'pending_dsc_approval' AND s.type = 'final-thesis'
+      `,
+      [dscMemberId]
+    );
+    console.log('Final thesis pending DSC approval query result:', (rows as any)[0]);
     return (rows as any)[0].count;
   }
 }

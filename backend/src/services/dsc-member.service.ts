@@ -12,7 +12,16 @@ export class DscMemberService {
     const documents = await this.dscMemberRepository.getAssignedDocuments(dscMemberId);
     const pendingReviewsCount = await this.dscMemberRepository.getUnderReviewSubmissionsCount(dscMemberId);
     const approvedCount = await this.dscMemberRepository.getApprovedSubmissionsCount(dscMemberId);
-    return { documents, pendingReviewsCount, approvedCount };
+    const preThesisPendingDscApprovalCount = await this.dscMemberRepository.getPreThesisPendingDscApprovalCount(dscMemberId);
+    const finalThesisPendingDscApprovalCount = await this.dscMemberRepository.getFinalThesisPendingDscApprovalCount(dscMemberId);
+
+    return { 
+      documents, 
+      pendingReviewsCount, 
+      approvedCount,
+      preThesisPendingDscApprovalCount,
+      finalThesisPendingDscApprovalCount
+    };
   }
 
   async submitReview(

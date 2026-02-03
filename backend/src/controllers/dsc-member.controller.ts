@@ -11,8 +11,21 @@ export class DscMemberController {
 
   async getAssignedDocuments(req: AuthenticatedRequest, res: Response) {
     const dscMemberId = req.user!.id;
-    const { documents, pendingReviewsCount, approvedCount } = await this.dscMemberService.getAssignedDocuments(dscMemberId);
-    res.status(200).json({ success: true, data: documents, pendingReviewsCount, approvedCount });
+    const { 
+      documents, 
+      pendingReviewsCount, 
+      approvedCount,
+      preThesisPendingDscApprovalCount,
+      finalThesisPendingDscApprovalCount
+    } = await this.dscMemberService.getAssignedDocuments(dscMemberId);
+    res.status(200).json({ 
+      success: true, 
+      data: documents, 
+      pendingReviewsCount, 
+      approvedCount,
+      preThesisPendingDscApprovalCount,
+      finalThesisPendingDscApprovalCount
+    });
   }
 
   async submitReview(req: AuthenticatedRequest, res: Response) {

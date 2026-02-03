@@ -34,6 +34,8 @@ export default function DSCDashboardPage() {
   const [finalThesis, setFinalThesis] = useState<Document[]>([]);
   const [pendingReviewsCount, setPendingReviewsCount] = useState(0);
   const [approvedCount, setApprovedCount] = useState(0);
+  const [preThesisPendingDscApprovalCount, setPreThesisPendingDscApprovalCount] = useState(0);
+  const [finalThesisPendingDscApprovalCount, setFinalThesisPendingDscApprovalCount] = useState(0);
 
   const apiFetch = useApi();
   const router = useRouter();
@@ -51,13 +53,14 @@ export default function DSCDashboardPage() {
         const res = await apiFetch('/api/dsc-member/documents');
         const data = await res.json();
         if (data.success) {
-          setProposals(data.data.filter((doc: any) => doc.type === 'proposal' && doc.status === 'under_review'));
-          setReports(data.data.filter((doc: any) => doc.type === 'report' && doc.status === 'under_review'));
-          setPreThesis(data.data.filter((doc: any) => doc.type === 'pre-thesis' && doc.status === 'under_review'));
-          setFinalThesis(data.data.filter((doc: any) => doc.type === 'final-thesis' && doc.status === 'under_review'));
+          setProposals(data.data.filter((doc: any) => doc.type === 'proposal' && doc.status === 'pending_dsc_approval'));
+          setReports(data.data.filter((doc: any) => doc.type === 'report' && doc.status === 'pending_dsc_approval'));
+          setPreThesis(data.data.filter((doc: any) => doc.type === 'pre-thesis' && doc.status === 'pending_dsc_approval'));
+          setFinalThesis(data.data.filter((doc: any) => doc.type === 'final-thesis' && doc.status === 'pending_dsc_approval'));
           setPendingReviewsCount(data.pendingReviewsCount);
-          setApprovedCount(data.approvedCount); // Use the approvedCount directly from the backend
-          console.log('Approved count received from backend:', data.approvedCount);
+          setApprovedCount(data.approvedCount); 
+          setPreThesisPendingDscApprovalCount(data.preThesisPendingDscApprovalCount);
+          setFinalThesisPendingDscApprovalCount(data.finalThesisPendingDscApprovalCount);
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -231,7 +234,7 @@ export default function DSCDashboardPage() {
                 <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-6">
                   <div className="flex justify-between items-center mb-2">
                     <FileCheck className="w-8 h-8" />
-                    <span className="text-3xl font-bold">{preThesis.length + finalThesis.length}</span>
+                    <span className="text-3xl font-bold">{preThesisPendingDscApprovalCount + finalThesisPendingDscApprovalCount}</span>
                   </div>
                   <p className="text-sm">Thesis Reviews</p>
                 </div>
