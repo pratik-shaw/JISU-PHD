@@ -14,13 +14,15 @@ export class DscMemberService {
     const approvedCount = await this.dscMemberRepository.getApprovedSubmissionsCount(dscMemberId);
     const preThesisPendingDscApprovalCount = await this.dscMemberRepository.getPreThesisPendingDscApprovalCount(dscMemberId);
     const finalThesisPendingDscApprovalCount = await this.dscMemberRepository.getFinalThesisPendingDscApprovalCount(dscMemberId);
+    const sentToAdminCount = await this.dscMemberRepository.getSentToAdminCount(dscMemberId);
 
     return { 
       documents, 
       pendingReviewsCount, 
       approvedCount,
       preThesisPendingDscApprovalCount,
-      finalThesisPendingDscApprovalCount
+      finalThesisPendingDscApprovalCount,
+      sentToAdminCount
     };
   }
 

@@ -36,6 +36,7 @@ export default function DSCDashboardPage() {
   const [approvedCount, setApprovedCount] = useState(0);
   const [preThesisPendingDscApprovalCount, setPreThesisPendingDscApprovalCount] = useState(0);
   const [finalThesisPendingDscApprovalCount, setFinalThesisPendingDscApprovalCount] = useState(0);
+  const [sentToAdminCount, setSentToAdminCount] = useState(0);
 
   const apiFetch = useApi();
   const router = useRouter();
@@ -61,6 +62,7 @@ export default function DSCDashboardPage() {
           setApprovedCount(data.approvedCount); 
           setPreThesisPendingDscApprovalCount(data.preThesisPendingDscApprovalCount);
           setFinalThesisPendingDscApprovalCount(data.finalThesisPendingDscApprovalCount);
+          setSentToAdminCount(data.sentToAdminCount);
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -241,7 +243,7 @@ export default function DSCDashboardPage() {
                 <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6">
                   <div className="flex justify-between items-center mb-2">
                     <Send className="w-8 h-8" />
-                    <span className="text-3xl font-bold">1</span>
+                    <span className="text-3xl font-bold">{sentToAdminCount}</span>
                   </div>
                   <p className="text-sm">Sent to Admin</p>
                 </div>

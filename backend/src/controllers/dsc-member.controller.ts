@@ -16,7 +16,8 @@ export class DscMemberController {
       pendingReviewsCount, 
       approvedCount,
       preThesisPendingDscApprovalCount,
-      finalThesisPendingDscApprovalCount
+      finalThesisPendingDscApprovalCount,
+      sentToAdminCount
     } = await this.dscMemberService.getAssignedDocuments(dscMemberId);
     res.status(200).json({ 
       success: true, 
@@ -24,7 +25,8 @@ export class DscMemberController {
       pendingReviewsCount, 
       approvedCount,
       preThesisPendingDscApprovalCount,
-      finalThesisPendingDscApprovalCount
+      finalThesisPendingDscApprovalCount,
+      sentToAdminCount
     });
   }
 

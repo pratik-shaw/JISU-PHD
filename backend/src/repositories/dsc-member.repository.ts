@@ -93,4 +93,22 @@ export class DscMemberRepository {
     console.log('Final thesis pending DSC approval query result:', (rows as any)[0]);
     return (rows as any)[0].count;
   }
+
+  async getSentToAdminCount(dscMemberId: number): Promise<number> {
+    console.log(`Fetching sent to admin count for dscMemberId: ${dscMemberId}`);
+    const [rows] = await db.query(
+      `
+      SELECT COUNT(s.id) as count
+      FROM submissions s
+      JOIN students st ON s.student_id = st.id
+      JOIN dsc_members dsm ON st.dsc_id = dsm.dsc_id
+      WHERE dsm.user_id = ? 
+        AND s.status = 'pending' 
+        AND s.type IN ('pre-thesis', 'final-thesis')
+      `,
+      [dscMemberId]
+    );
+    console.log('Sent to Admin query result:', (rows as any)[0]);
+    return (rows as any)[0].count;
+  }
 }
