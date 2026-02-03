@@ -34,10 +34,14 @@ export const useApi = () => {
 
       const response = await fetch(fullUrl, finalOptions);
 
-      if (response.status === 401) {
-        localStorage.removeItem('authToken');
-        router.push('/home'); // Or a more specific login page if needed
-        throw new Error('Unauthorized');
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('authToken');
+          router.push('/home');
+          throw new Error('Unauthorized');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       return response;

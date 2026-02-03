@@ -171,9 +171,9 @@ export default function DSCDashboardPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to change password:', error);
-      alert('Failed to change password');
+      alert(`Failed to change password: ${error.message}`);
     }
   };
 
