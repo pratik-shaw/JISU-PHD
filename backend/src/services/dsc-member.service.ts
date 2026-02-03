@@ -9,7 +9,9 @@ export class DscMemberService {
   }
 
   async getAssignedDocuments(dscMemberId: number) {
-    return this.dscMemberRepository.getAssignedDocuments(dscMemberId);
+    const documents = await this.dscMemberRepository.getAssignedDocuments(dscMemberId);
+    const pendingReviewsCount = await this.dscMemberRepository.getUnderReviewSubmissionsCount(dscMemberId);
+    return { documents, pendingReviewsCount };
   }
 
   async submitReview(

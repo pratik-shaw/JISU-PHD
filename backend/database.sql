@@ -55,7 +55,7 @@ CREATE TABLE submissions (
     type VARCHAR(255) NOT NULL, -- e.g., 'pre-thesis', 'final-thesis'
     title VARCHAR(255),
     abstract TEXT,
-        status ENUM('pending', 'under_review', 'approved', 'rejected', 'pending_co_supervisor_approval', 'pending_supervisor_approval') NOT NULL DEFAULT 'pending',
+        status ENUM('pending', 'under_review', 'approved', 'rejected', 'pending_co_supervisor_approval', 'pending_dsc_approval', 'pending_supervisor_approval') NOT NULL DEFAULT 'pending',
     submission_date DATE,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );

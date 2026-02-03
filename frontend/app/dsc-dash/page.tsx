@@ -32,6 +32,8 @@ export default function DSCDashboardPage() {
   const [reports, setReports] = useState<Document[]>([]);
   const [preThesis, setPreThesis] = useState<Document[]>([]);
   const [finalThesis, setFinalThesis] = useState<Document[]>([]);
+  const [pendingReviewsCount, setPendingReviewsCount] = useState(0);
+  const [approvedCount, setApprovedCount] = useState(0);
 
   const apiFetch = useApi();
   const router = useRouter();
@@ -49,10 +51,12 @@ export default function DSCDashboardPage() {
         const res = await apiFetch('/api/dsc-member/documents');
         const data = await res.json();
         if (data.success) {
-          setProposals(data.data.filter((doc: any) => doc.type === 'proposal'));
-          setReports(data.data.filter((doc: any) => doc.type === 'report'));
-          setPreThesis(data.data.filter((doc: any) => doc.type === 'pre-thesis'));
-          setFinalThesis(data.data.filter((doc: any) => doc.type === 'final-thesis'));
+          setProposals(data.data.filter((doc: any) => doc.type === 'proposal' && doc.status === 'under_review'));
+          setReports(data.data.filter((doc: any) => doc.type === 'report' && doc.status === 'under_review'));
+          setPreThesis(data.data.filter((doc: any) => doc.type === 'pre-thesis' && doc.status === 'under_review'));
+          setFinalThesis(data.data.filter((doc: any) => doc.type === 'final-thesis' && doc.status === 'under_review'));
+          setPendingReviewsCount(data.pendingReviewsCount);
+          setApprovedCount(data.data.filter((doc: any) => doc.status === 'approved').length);
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -212,14 +216,14 @@ export default function DSCDashboardPage() {
                 <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-xl p-6">
                   <div className="flex justify-between items-center mb-2">
                     <Clock className="w-8 h-8" />
-                    <span className="text-3xl font-bold">{proposals.filter(p => p.status === 'Pending').length + reports.filter(r => r.status === 'Pending').length}</span>
+                    <span className="text-3xl font-bold">{pendingReviewsCount}</span>
                   </div>
                   <p className="text-sm">Pending Reviews</p>
                 </div>
                 <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
                   <div className="flex justify-between items-center mb-2">
                     <CheckCircle className="w-8 h-8" />
-                    <span className="text-3xl font-bold">2</span>
+                    <span className="text-3xl font-bold">{approvedCount}</span>
                   </div>
                   <p className="text-sm">Approved</p>
                 </div>
@@ -263,7 +267,7 @@ export default function DSCDashboardPage() {
                         <td className="px-6 py-4 text-slate-400">{p.supervisor}</td>
                         <td className="px-6 py-4">{p.title}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-sm ${p.status === 'Pending' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-blue-600/20 text-blue-400'}`}>
+                          <span className={`px-3 py-1 rounded-full text-sm ${p.status === 'under_review' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-blue-600/20 text-blue-400'}`}>
                             {p.status}
                           </span>
                         </td>

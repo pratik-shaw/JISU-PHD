@@ -27,4 +27,18 @@ export class DscMemberRepository {
     );
     return rows;
   }
+
+  async getUnderReviewSubmissionsCount(dscMemberId: number): Promise<number> {
+    console.log(`Fetching under review submissions count for dscMemberId: ${dscMemberId}`);
+    const [rows] = await db.query(
+      `
+      SELECT COUNT(s.id) as count
+      FROM submissions s
+      WHERE s.status = 'pending_dsc_approval';
+      `,
+    );
+    console.log('Query result:', (rows as any)[0]);
+    return (rows as any)[0].count;
+  }
+
 }
