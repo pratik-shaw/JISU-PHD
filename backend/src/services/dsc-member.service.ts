@@ -1,5 +1,6 @@
 import { DscMemberRepository } from '../repositories/dsc-member.repository';
 import { SubmissionRepository } from '../repositories/submission.repository';
+import path from 'path';
 
 export class DscMemberService {
   private dscMemberRepository: DscMemberRepository;
@@ -29,18 +30,27 @@ export class DscMemberService {
   async submitReview(
     documentId: string,
     dscMemberId: number,
-    decision: 'approved' | 'revision' | 'rejected',
+    decision: 'approved' | 'rejected',
     comments: string
   ) {
-    if (decision === 'approved' || decision === 'rejected') {
-      await SubmissionRepository.updateStatus(parseInt(documentId, 10), decision);
-    }
-    // Add review to the document
-    // This functionality will be added later
+    return await this.dscMemberRepository.createReview(
+      parseInt(documentId, 10),
+      dscMemberId,
+      decision,
+      comments
+    );
   }
 
   async forwardDocumentToAdmin(documentId: string) {
-    // Logic to forward document to admin
-    // This will likely involve updating the document status
+    await SubmissionRepository.updateStatus(parseInt(documentId, 10), 'pending');
+  }
+
+  async getDocument(documentId: string): Promise<string> {
+    const submission = await SubmissionRepository.findById(parseInt(documentId, 10));
+    if (!submission || !submission.document_url) {
+      throw new Error('Document not found');
+    }
+    const filePath = path.join(__dirname, '../../', submission.document_url);
+    return filePath;
   }
 }

@@ -24,4 +24,9 @@ router.post(
   asyncHandler(dscMemberController.forwardDocumentToAdmin.bind(dscMemberController))
 );
 
+router.get(
+    '/submissions/:id/view',
+    asyncHandler(dscMemberController.viewDocument.bind(dscMemberController))
+);
+
 export default router;

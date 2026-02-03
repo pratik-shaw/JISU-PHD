@@ -52,13 +52,23 @@ CREATE TABLE dsc_members (
 CREATE TABLE submissions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT NOT NULL,
-    type VARCHAR(255) NOT NULL, -- e.g., 'pre-thesis', 'final-thesis'
+    type VARCHAR(255) NOT NULL,
     title VARCHAR(255),
     abstract TEXT,
-        status ENUM('pending', 'under_review', 'approved', 'rejected', 'pending_co_supervisor_approval', 'pending_dsc_approval', 'pending_supervisor_approval') NOT NULL DEFAULT 'pending',
+    document_url VARCHAR(255),
+    status ENUM(
+        'pending',
+        'under_review',
+        'approved',
+        'rejected',
+        'pending_co_supervisor_approval',
+        'pending_supervisor_approval',
+        'pending_dsc_approval'
+    ) NOT NULL DEFAULT 'pending',
     submission_date DATE,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
+
 
 -- Feedback Table: Stores feedback/comments on submissions.
 CREATE TABLE feedback (

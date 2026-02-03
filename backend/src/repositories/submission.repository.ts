@@ -2,7 +2,7 @@
 import pool from '../config/database';
 
 export const SubmissionRepository = {
-  async updateStatus(submissionId: number, status: 'approved' | 'rejected'): Promise<boolean> {
+  async updateStatus(submissionId: number, status: 'approved' | 'rejected' | 'pending'): Promise<boolean> {
     const [result] = await pool.execute(
       'UPDATE submissions SET status = ? WHERE id = ?',
       [status, submissionId]

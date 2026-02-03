@@ -47,4 +47,18 @@ export class DscMemberController {
     await this.dscMemberService.forwardDocumentToAdmin(id);
     res.status(200).json({ success: true, message: 'Document forwarded to admin' });
   }
+
+    async viewDocument(req: Request, res: Response): Promise<void> {
+        const { id } = req.params;
+        try {
+            const filePath = await this.dscMemberService.getDocument(id);
+            res.sendFile(filePath);
+        } catch (error) {
+            if (error instanceof Error) {
+                res.status(404).json({ success: false, message: error.message });
+            } else {
+                res.status(500).json({ success: false, message: 'An unknown error occurred' });
+            }
+        }
+    }
 }

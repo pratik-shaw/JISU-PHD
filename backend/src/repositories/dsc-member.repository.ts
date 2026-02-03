@@ -10,7 +10,8 @@ export class DscMemberRepository {
         s.type,
         u.name as student,
         sup.name as supervisor,
-        s.status
+        s.status,
+        s.document_url as documentUrl
       FROM submissions s
       JOIN students st ON s.student_id = st.id
       JOIN users u ON st.user_id = u.id
@@ -110,5 +111,23 @@ export class DscMemberRepository {
     );
     console.log('Sent to Admin query result:', (rows as any)[0]);
     return (rows as any)[0].count;
+  }
+
+  async createReview(
+    submissionId: number,
+    userId: number,
+    decision: 'approved' | 'rejected',
+    comments: string
+  ): Promise<void> {
+    const feedbackComment = `Decision: ${decision.toUpperCase()}. Comments: ${comments}`;
+    await db.execute(
+      'INSERT INTO feedback (submission_id, user_id, comment) VALUES (?, ?, ?)',
+      [submissionId, userId, feedbackComment]
+    );
+
+    await db.execute('UPDATE submissions SET status = ? WHERE id = ?', [
+      decision,
+      submissionId,
+    ]);
   }
 }

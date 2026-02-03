@@ -10,7 +10,7 @@ interface FileViewerProps {
   fileType: string;
 }
 
-export default function FileViewer({ isOpen, onClose, fileUrl, fileType }: FileViewerProps) {
+export default function FileViewer({ isOpen, onClose, fileUrl, fileType = '' }: FileViewerProps) {
   if (!isOpen) return null;
 
   const renderFile = () => {
