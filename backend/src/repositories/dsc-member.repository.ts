@@ -34,11 +34,11 @@ export class DscMemberRepository {
       `
       SELECT COUNT(s.id) as count
       FROM submissions s
-      WHERE s.status = 'pending_dsc_approval';
+      JOIN students st ON s.student_id = st.id
+      WHERE s.status = 'pending_dsc_approval'
       `,
     );
     console.log('Query result:', (rows as any)[0]);
     return (rows as any)[0].count;
   }
-
 }
