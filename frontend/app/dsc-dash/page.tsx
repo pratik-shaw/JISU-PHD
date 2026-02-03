@@ -56,7 +56,8 @@ export default function DSCDashboardPage() {
           setPreThesis(data.data.filter((doc: any) => doc.type === 'pre-thesis' && doc.status === 'under_review'));
           setFinalThesis(data.data.filter((doc: any) => doc.type === 'final-thesis' && doc.status === 'under_review'));
           setPendingReviewsCount(data.pendingReviewsCount);
-          setApprovedCount(data.data.filter((doc: any) => doc.status === 'approved').length);
+          setApprovedCount(data.approvedCount); // Use the approvedCount directly from the backend
+          console.log('Approved count received from backend:', data.approvedCount);
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
