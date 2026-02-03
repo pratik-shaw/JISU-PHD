@@ -1,37 +1,30 @@
-// src/repositories/dsc-member.repository.ts
-import pool from '../config/database';
+import db from '../config/database';
 
-export const DscMemberRepository = {
-  async findReviewDocuments(userId: number): Promise<any[]> {
-    const [rows] = await pool.execute(`
-      SELECT
-        d.id,
-        d.title,
-        d.type,
-        d.status,
-        d.submission_date as date,
+export class DscMemberRepository {
+  async getAssignedDocuments(dscMemberId: number) {
+    const [rows] = await db.query(
+      `
+      SELECT 
+        s.id,
+        s.title,
+        s.type,
         u.name as student,
-        (SELECT name FROM users WHERE id = s.supervisor_id) as supervisor
-      FROM (
-        SELECT id, student_id, 'proposal' as type, title, status, submission_date FROM proposals
-        UNION ALL
-        SELECT id, student_id, 'report' as type, title, status, submission_date FROM reports
-        UNION ALL
-        SELECT id, student_id, type, title, status, submission_date FROM submissions
-      ) d
-      JOIN students s ON d.student_id = s.id
-      JOIN users u ON s.user_id = u.id
-      JOIN dsc_members dm ON u.id = dm.user_id
-      WHERE dm.dsc_id = (SELECT dsc_id FROM dsc_members WHERE user_id = ? LIMIT 1)
-        AND d.status = 'pending'
-    `, [userId]);
-    return rows as any[];
-  },
-  async createReview(review: any): Promise<number> {
-    // TODO: Implement
-    return 1;
-  },
-  async forwardDocument(documentId: number, userId: number): Promise<void> {
-    // TODO: Implement
-  },
-};
+        sup.name as supervisor,
+        s.status
+      FROM submissions s
+      JOIN students st ON s.student_id = st.id
+      JOIN users u ON st.user_id = u.id
+      JOIN dsc_members dsm ON st.dsc_id = dsm.dsc_id
+      LEFT JOIN (
+        SELECT dsc_id, user_id
+        FROM dsc_members
+        WHERE role_in_dsc = 'supervisor'
+      ) sup_dsm ON st.dsc_id = sup_dsm.dsc_id
+      LEFT JOIN users sup ON sup_dsm.user_id = sup.id
+      WHERE dsm.user_id = ?
+      `,
+      [dscMemberId]
+    );
+    return rows;
+  }
+}

@@ -7,7 +7,7 @@ const app: Express = express();
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:3001', // Allow only the frontend to access
+    origin: 'http://localhost:3000', // Allow only the frontend to access
     credentials: true, // Allow cookies to be sent
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Explicitly allowed methods
     allowedHeaders: ['Content-Type', 'Authorization'], // Explicitly allowed headers
@@ -26,7 +26,6 @@ import studentRoutes from './routes/student.routes';
 app.use('/api', routes);
 app.use('/api/me', meRoutes);
 app.use('/api/co-supervisor', coSupervisorRoutes);
-app.use('/api/dsc-member', dscMemberRoutes);
 app.use('/api/supervisor', supervisorRoutes);
 app.use('/api/student', studentRoutes);
 

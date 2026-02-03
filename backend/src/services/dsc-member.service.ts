@@ -1,14 +1,32 @@
-// src/services/dsc-member.service.ts
 import { DscMemberRepository } from '../repositories/dsc-member.repository';
+import { SubmissionRepository } from '../repositories/submission.repository';
 
-export const DscMemberService = {
-  async getReviewDocuments(userId: number) {
-    return await DscMemberRepository.findReviewDocuments(userId);
-  },
-  async submitReview(review: any) {
-    // TODO: Implement
-  },
-  async forwardDocument(documentId: number, userId: number) {
-    // TODO: Implement
-  },
-};
+export class DscMemberService {
+  private dscMemberRepository: DscMemberRepository;
+
+  constructor() {
+    this.dscMemberRepository = new DscMemberRepository();
+  }
+
+  async getAssignedDocuments(dscMemberId: number) {
+    return this.dscMemberRepository.getAssignedDocuments(dscMemberId);
+  }
+
+  async submitReview(
+    documentId: string,
+    dscMemberId: number,
+    decision: 'approved' | 'revision' | 'rejected',
+    comments: string
+  ) {
+    if (decision === 'approved' || decision === 'rejected') {
+      await SubmissionRepository.updateStatus(parseInt(documentId, 10), decision);
+    }
+    // Add review to the document
+    // This functionality will be added later
+  }
+
+  async forwardDocumentToAdmin(documentId: string) {
+    // Logic to forward document to admin
+    // This will likely involve updating the document status
+  }
+}

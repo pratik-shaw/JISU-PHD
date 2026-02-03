@@ -1,3 +1,4 @@
+'use client'
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@/app/hooks/useApi';
@@ -45,7 +46,7 @@ export default function DSCDashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/dsc-member/documents`);
+        const res = await apiFetch('/api/dsc-member/documents');
         const data = await res.json();
         if (data.success) {
           setProposals(data.data.filter((doc: any) => doc.type === 'proposal'));
@@ -67,7 +68,7 @@ export default function DSCDashboardPage() {
 
   const submitReview = async (decision: string) => {
     try {
-      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/dsc-member/reviews`, {
+      await apiFetch('/api/dsc-member/reviews', {
         method: 'POST',
         body: JSON.stringify({
           documentId: selectedDocument?.id,
@@ -86,7 +87,7 @@ export default function DSCDashboardPage() {
 
   const sendToAdmin = async (doc: Document) => {
     try {
-      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/dsc-member/documents/${doc.id}/forward`, {
+      await apiFetch(`/dsc-member/documents/${doc.id}/forward`, {
         method: 'POST',
       });
       alert(`"${doc.title}" has been approved and sent to Admin for final approval`);
@@ -121,7 +122,7 @@ export default function DSCDashboardPage() {
     }
 
     try {
-      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/me/password`, {
+      await apiFetch('/api/me/password', {
         method: 'PUT',
         body: JSON.stringify({ oldPassword: currentPassword, newPassword: newPassword }),
       });

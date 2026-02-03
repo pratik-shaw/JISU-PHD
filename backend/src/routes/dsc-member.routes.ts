@@ -1,15 +1,27 @@
-// src/routes/dsc-member.routes.ts
 import { Router } from 'express';
+import asyncHandler from '../middleware/asyncHandler';
+import { checkAuth } from '../middleware/auth.middleware';
+
 import { DscMemberController } from '../controllers/dsc-member.controller';
-import { checkAuth, checkRole } from '../middleware/auth.middleware';
 
 const router = Router();
+const dscMemberController = new DscMemberController();
 
-// All routes in this file are protected and only for dsc_members
-router.use(checkAuth, checkRole(['dsc_member']));
+router.use(checkAuth);
 
-router.get('/documents', DscMemberController.getReviewDocuments);
-router.post('/reviews', DscMemberController.submitReview);
-router.post('/documents/:id/forward', DscMemberController.forwardDocument);
+router.get(
+  '/documents',
+  asyncHandler(dscMemberController.getAssignedDocuments.bind(dscMemberController))
+);
+
+router.post(
+  '/reviews',
+  asyncHandler(dscMemberController.submitReview.bind(dscMemberController))
+);
+
+router.post(
+  '/documents/:id/forward',
+  asyncHandler(dscMemberController.forwardDocumentToAdmin.bind(dscMemberController))
+);
 
 export default router;

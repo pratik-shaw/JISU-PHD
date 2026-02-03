@@ -7,6 +7,7 @@ import dscRoutes from './dsc.routes';
 import applicationRoutes from './application.routes';
 
 import adminRoutes from './admin.routes';
+import dscMemberRoutes from './dsc-member.routes';
 
 const router = Router();
 
@@ -15,5 +16,6 @@ router.use('/users', userRoutes);
 router.use('/dscs', dscRoutes);
 router.use('/applications', applicationRoutes);
 router.use('/admin', adminRoutes);
+router.use('/dsc-member', dscMemberRoutes);
 
 export default router;
