@@ -8,6 +8,7 @@ export interface User {
   name: string;
   role: UserRole;
   password_hash: string;
+  uniqueId?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -22,5 +23,5 @@ export interface UserCreateDTO {
   name: string;
   password: string;
   role: UserRole;
-  universityId?: string; // Optional, for student users
+  uniqueId?: string; // Optional, for all users now
 }

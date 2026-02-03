@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { X, Users, Calendar, FileText, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
 
 interface CreateDSCProps {
   isOpen: boolean;
@@ -13,14 +14,15 @@ interface Student {
   id: number;
   name: string;
   email: string;
-  universityId?: string;
+  uniqueId?: string;
 }
 
 interface Member {
   id: number;
   name: string;
   email: string;
-  currentRole: string;
+  role: string;
+  uniqueId?: string;
 }
 
 interface SelectedStudent {
@@ -50,6 +52,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(false);
   const [error, setError] = useState('');
+  const apiFetch = useApi();
 
   useEffect(() => {
     if (isOpen) {
@@ -57,25 +60,42 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
     }
   }, [isOpen]);
 
+  const fetchStudents = async () => {
+    try {
+      const response = await apiFetch(`/api/users?role=student`);
+      const data = await response.json();
+      if (data.success) {
+        setStudents(data.data);
+        return response; // Return the full response for Promise.all
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load students');
+      console.error('Error fetching students:', err);
+      throw err; // Re-throw to be caught by fetchData's Promise.all
+    }
+  };
+
+  const fetchMembers = async () => {
+    try {
+      const response = await apiFetch(`/api/users/members`);
+      const data = await response.json();
+      if (data.success) {
+        setMembers(data.data);
+        return response; // Return the full response for Promise.all
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load members');
+      console.error('Error fetching members:', err);
+      throw err; // Re-throw to be caught by fetchData's Promise.all
+    }
+  };
+
   const fetchData = async () => {
     setFetchingData(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setStudents([
-        { id: 1, name: 'John Doe', email: 'john.doe@university.edu', universityId: 'STU001' },
-        { id: 2, name: 'Jane Smith', email: 'jane.smith@university.edu', universityId: 'STU002' },
-        { id: 3, name: 'Mike Johnson', email: 'mike.j@university.edu', universityId: 'STU003' },
-        { id: 4, name: 'Sarah Williams', email: 'sarah.w@university.edu', universityId: 'STU004' },
-        { id: 5, name: 'David Brown', email: 'david.b@university.edu', universityId: 'STU005' }
-      ]);
-
-      setMembers([
-        { id: 10, name: 'Dr. Robert Smith', email: 'robert.s@university.edu', currentRole: 'Faculty' },
-        { id: 11, name: 'Dr. Emily Johnson', email: 'emily.j@university.edu', currentRole: 'Supervisor' },
-        { id: 12, name: 'Dr. Michael Brown', email: 'michael.b@university.edu', currentRole: 'Co-Supervisor' },
-        { id: 13, name: 'Dr. Sarah Davis', email: 'sarah.d@university.edu', currentRole: 'Faculty' },
-        { id: 14, name: 'Dr. James Wilson', email: 'james.w@university.edu', currentRole: 'Faculty' },
-        { id: 15, name: 'Dr. Lisa Anderson', email: 'lisa.a@university.edu', currentRole: 'Faculty' }
+      await Promise.all([
+        fetchStudents(),
+        fetchMembers(),
       ]);
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
@@ -145,26 +165,47 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
       return;
     }
 
-    if (selectedStudents.length === 0) {
-      setError('Please add at least one student to the DSC');
-      return;
-    }
-
-    if (selectedMembers.length === 0) {
-      setError('Please add at least one member to the DSC');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Bulk DSC Creation:', {
-        ...formData,
-        students: selectedStudents,
-        members: selectedMembers
+      const dscResponse = await apiFetch(`/api/dscs`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: formData.dscName,
+          description: formData.description,
+          formation_date: formData.formationDate,
+        }),
       });
+
+      if (!dscResponse.ok) {
+        const errorData = await dscResponse.json();
+        throw new Error(errorData.message || 'Failed to create DSC');
+      }
+
+      const dscData = await dscResponse.json();
+      const dscId = dscData.data.id;
+
+      // Add members to the new DSC
+      for (const member of selectedMembers) {
+        await apiFetch(`/api/dscs/members`, {
+          method: 'POST',
+          body: JSON.stringify({
+            userId: parseInt(member.memberId, 10),
+            dscId: dscId,
+            role: 'Member', // Default role, can be changed later
+          }),
+        });
+      }
+      
+      // Associate students with the DSC
+      if (selectedStudents.length > 0) {
+        const studentIds = selectedStudents.map(s => parseInt(s.studentId, 10));
+        await apiFetch(`/api/dscs/${dscId}/students`, {
+          method: 'PUT',
+          body: JSON.stringify({ studentIds }),
+        });
+      }
 
       if (onSuccess) onSuccess();
       
@@ -177,7 +218,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
       setSelectedMembers([]);
       
       onClose();
-      alert(`Successfully created ${selectedStudents.length} DSC(s)! You can now assign supervisors and co-supervisors.`);
+      alert(`Successfully created DSC, added ${selectedMembers.length} members, and associated ${selectedStudents.length} students!`);
 
     } catch (err: any) {
       setError(err.message || 'An error occurred while creating DSCs');
@@ -288,7 +329,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
                     <option value="">Select a student</option>
                     {students.map((student) => (
                       <option key={student.id} value={student.id}>
-                        {student.name} ({student.universityId})
+                        {student.name} ({student.uniqueId})
                       </option>
                     ))}
                   </select>
@@ -342,7 +383,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
                     <option value="">Select a member</option>
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.name} - {member.currentRole}
+                        {member.name} - {member.role} ({member.uniqueId})
                       </option>
                     ))}
                   </select>

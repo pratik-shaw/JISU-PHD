@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service';
 import asyncHandler from '../middleware/asyncHandler';
 import logger from '../utils/logger';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
 const createUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const newUser = await UserService.createUser(req.body);
@@ -13,11 +14,25 @@ const createUser = asyncHandler(async (req: Request, res: Response, next: NextFu
 });
 
 const getAllUsers = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const users = await UserService.getAllUsers();
-  res.status(200).json({
-    success: true,
-    data: users,
-  });
+  if (req.query.role === 'student') {
+    const users = await UserService.getAllStudents();
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } else if (req.query.role === 'faculty') {
+    const users = await UserService.getAllNonStudentsNonAdmins();
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } else {
+    const users = await UserService.getAllUsers();
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  }
 });
 
 const getUserById = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
@@ -30,7 +45,8 @@ const getUserById = asyncHandler(async (req: Request, res: Response, next: NextF
 });
 
 const updateUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const updatedUser = await UserService.updateUser(Number(req.params.id), req.body);
+  const { dscId, ...userDto } = req.body;
+  const updatedUser = await UserService.updateUser(Number(req.params.id), { ...userDto, dscId });
   res.status(200).json({
     success: true,
     data: updatedUser,
@@ -60,6 +76,13 @@ const updateUserRole = asyncHandler(async (req: Request, res: Response) => {
     });
 });
 
+const changePassword = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const { oldPassword, newPassword } = req.body;
+  await UserService.changePassword(userId, oldPassword, newPassword);
+  res.status(204).send();
+});
+
 export const UserController = {
   createUser,
   getAllUsers,
@@ -68,4 +91,5 @@ export const UserController = {
   deleteUser,
   getAllMembers,
   updateUserRole,
+  changePassword,
 };

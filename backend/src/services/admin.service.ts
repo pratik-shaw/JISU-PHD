@@ -20,8 +20,16 @@ export const AdminService = {
     };
   },
 
+  async getDscs() {
+    return await DscRepository.findAll();
+  },
+
   async getRecentUserActivity() {
     // Fetch last 5 recently created users
     return await UserRepository.findRecent(5);
+  },
+
+  async getAllSubmissions(filters: { status?: string; type?: string }) {
+    return await ApplicationRepository.findAll(filters);
   }
 };

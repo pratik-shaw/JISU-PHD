@@ -32,9 +32,14 @@ const getMyApplications = asyncHandler(async (req: AuthenticatedRequest, res: Re
     res.status(200).json({ success: true, data: apps });
 });
 
-const updateApplicationStatus = asyncHandler(async (req: Request, res: Response) => {
-    const { status } = req.body;
-    const updatedApp = await ApplicationService.updateApplicationStatus(Number(req.params.id), status);
+const updateApplicationStatus = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const applicationId = Number(req.params.id);
+    const { status, comment } = req.body;
+    const userId = req.user!.id; // Get userId from authenticated request
+
+    console.log('ApplicationController.updateApplicationStatus received:', { applicationId, status, comment, userId });
+
+    const updatedApp = await ApplicationService.updateApplicationStatus(applicationId, status, userId, comment);
     res.status(200).json({ success: true, data: updatedApp });
 });
 

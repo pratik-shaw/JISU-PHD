@@ -47,8 +47,8 @@ export const DscRepository = {
 
   async addMember(memberDto: DscMemberDTO): Promise<number> {
     const [result] = await pool.execute(
-      'INSERT INTO dsc_members (user_id, dsc_id, role_in_dsc) VALUES (?, ?, ?)',
-      [memberDto.userId, memberDto.dscId, memberDto.role]
+      'INSERT INTO dsc_members (user_id, dsc_id, role_in_dsc) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role_in_dsc = ?',
+      [memberDto.userId, memberDto.dscId, memberDto.role, memberDto.role]
     );
     const insertResult = result as any;
     return insertResult.insertId;
@@ -61,6 +61,56 @@ export const DscRepository = {
     );
     const deleteResult = result as any;
     return deleteResult.affectedRows > 0;
+  },
+
+  async removeAllSupervisors(dscId: number): Promise<boolean> {
+    const [result] = await pool.execute(
+      "DELETE FROM dsc_members WHERE dsc_id = ? AND role_in_dsc IN ('supervisor', 'co_supervisor')",
+      [dscId]
+    );
+    const deleteResult = result as any;
+    return deleteResult.affectedRows > 0;
+  },
+
+  async removeAllMembers(dscId: number): Promise<boolean> {
+    const [result] = await pool.execute(
+      "DELETE FROM dsc_members WHERE dsc_id = ?",
+      [dscId]
+    );
+    const deleteResult = result as any;
+    return deleteResult.affectedRows > 0;
+  },
+
+  async findMembersByDscId(dscId: number): Promise<any[]> {
+    const [rows] = await pool.execute(
+      `SELECT u.id, u.name, u.email, dm.role_in_dsc as role
+       FROM dsc_members dm
+       JOIN users u ON dm.user_id = u.id
+       WHERE dm.dsc_id = ?`,
+      [dscId]
+    );
+    return rows as any[];
+  },
+
+  async findStudentsByDscId(dscId: number): Promise<any[]> {
+    const [rows] = await pool.execute(
+      `SELECT u.id, u.name, u.email, st.program
+       FROM students st
+       JOIN users u ON st.user_id = u.id
+       WHERE st.dsc_id = ?`,
+      [dscId]
+    );
+    return rows as any[];
+  },
+
+  async addStudentsToDsc(dscId: number, studentIds: number[]): Promise<void> {
+    const promises = studentIds.map(studentId =>
+      pool.execute(
+        'UPDATE students SET dsc_id = ? WHERE user_id = ?',
+        [dscId, studentId]
+      )
+    );
+    await Promise.all(promises);
   },
 
   async countByStatus(status: 'active' | 'inactive'): Promise<number> {

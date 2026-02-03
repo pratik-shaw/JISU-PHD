@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { X, Eye, Edit, Trash2, AlertCircle, Users, Calendar, FileText, UserCheck, Shield } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
 
 interface ViewEditDeleteDSCProps {
   isOpen: boolean;
@@ -42,13 +43,14 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
   const [fetchingData, setFetchingData] = useState(false);
   const [error, setError] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const apiFetch = useApi();
 
   useEffect(() => {
     if (isOpen && dsc) {
       setFormData({
         name: dsc.name || '',
         description: dsc.description || '',
-        formationDate: dsc.formationDate || '',
+        formationDate: dsc.formation_date ? new Date(dsc.formation_date).toISOString().split('T')[0] : '',
         status: dsc.status || 'Active'
       });
       fetchDSCDetails();
@@ -56,37 +58,20 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
   }, [isOpen, dsc]);
 
   const fetchDSCDetails = async () => {
+    if (!dsc) return;
     setFetchingData(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Mock data - Replace with actual API call
-      setMembers([
-        { id: 10, name: 'Dr. Robert Smith', email: 'robert.s@university.edu', role: 'Supervisor', department: 'Computer Science' },
-        { id: 11, name: 'Dr. Emily Johnson', email: 'emily.j@university.edu', role: 'Co-Supervisor', department: 'AI & ML' },
-        { id: 12, name: 'Dr. Michael Brown', email: 'michael.b@university.edu', role: 'Member', department: 'Data Science' }
+      const [membersResponse, studentsResponse] = await Promise.all([
+        apiFetch(`/api/dscs/${dsc.id}/members`),
+        apiFetch(`/api/dscs/${dsc.id}/students`),
       ]);
 
-      setStudents([
-        { 
-          id: 1, 
-          name: 'John Doe', 
-          email: 'john.doe@university.edu', 
-          universityId: 'STU001', 
-          department: 'Computer Science',
-          supervisor: 'Dr. Robert Smith',
-          coSupervisors: ['Dr. Emily Johnson']
-        },
-        { 
-          id: 2, 
-          name: 'Jane Smith', 
-          email: 'jane.smith@university.edu', 
-          universityId: 'STU002', 
-          department: 'AI & ML',
-          supervisor: 'Dr. Robert Smith',
-          coSupervisors: ['Dr. Michael Brown']
-        }
-      ]);
+      const membersData = await membersResponse.json();
+      if (membersData.success) setMembers(membersData.data);
+      
+      const studentsData = await studentsResponse.json();
+      if (studentsData.success) setStudents(studentsData.data);
+
     } catch (err: any) {
       setError(err.message || 'Failed to load DSC details');
     } finally {
@@ -112,8 +97,15 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Updating DSC:', { id: dsc.id, ...formData });
+      const response = await apiFetch(`/api/dscs/${dsc.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update DSC');
+      }
 
       if (onSuccess) onSuccess();
       onClose();
@@ -135,8 +127,14 @@ export default function ViewEditDeleteDSC({ isOpen, mode, dsc, onClose, onSucces
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Deleting DSC:', dsc.id);
+      const response = await apiFetch(`/api/dscs/${dsc.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete DSC');
+      }
 
       if (onSuccess) onSuccess();
       onClose();

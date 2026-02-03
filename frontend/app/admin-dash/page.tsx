@@ -16,6 +16,9 @@ import ViewEditDeleteUser from '@/app/admin-dash/ViewEditDeleteUser';
 import ViewEditDeleteDSC from '@/app/admin-dash/ViewEditDeleteDSC';
 import ReviewSystem from '@/app/admin-dash/ReviewSystem';
 import ReviewSubmission from '@/app/admin-dash/ReviewSubmission';
+import AdminChangePassword from '@/app/admin-dash/AdminChangePassword';
+import { useApi } from '@/app/hooks/useApi';
+import { useRouter } from 'next/navigation';
 import { Menu, X, Shield, Plus, Users, FileText, Award, CheckCircle, Eye, Edit, Trash2, UserPlus, UserCheck } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -32,10 +35,9 @@ export default function AdminDashboardPage() {
   const [showCreateMember, setShowCreateMember] = useState(false);
   const [showCreateDSC, setShowCreateDSC] = useState(false);
   const [showAddMembers, setShowAddMembers] = useState(false);
-  const [showAssignRoles, setShowAssignRoles] = useState(false);
   const [showReviewSystem, setShowReviewSystem] = useState(false);
   const [showReviewSubmission, setShowReviewSubmission] = useState(false);
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string | undefined>(undefined);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<number | undefined>(undefined);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | undefined>(undefined);
   
   const [userModal, setUserModal] = useState<{
@@ -64,36 +66,55 @@ export default function AdminDashboardPage() {
   const [members, setMembers] = useState<any[]>([]);
   const [memberRoles, setMemberRoles] = useState<{ [key: number]: string }>({});
 
-  const fetchData = async () => {
-    const token = localStorage.getItem('authToken');
-    if (!token) return;
+  const apiFetch = useApi();
+  const router = useRouter();
 
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      router.push('/admin-login');
+    }
+  }, [router]);
+
+  const fetchData = async () => {
+    console.log('Fetching data for tab:', activeTab);
+    
     try {
       if (activeTab === 'dashboard') {
         const [statsResponse, activityResponse] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stats`, { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/recent-activity`, { headers: { 'Authorization': `Bearer ${token}` } })
+          apiFetch(`/api/admin/stats`),
+          apiFetch(`/api/admin/recent-activity`)
         ]);
         const statsData = await statsResponse.json();
         if (statsData.success) setStats(statsData.data);
         const activityData = await activityResponse.json();
         if (activityData.success) setRecentUsers(activityData.data);
       } else if (activeTab === 'users') {
-        const usersResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const usersResponse = await apiFetch(`/api/users`);
         const usersData = await usersResponse.json();
+        console.log('Users data:', usersData);
         if (usersData.success) setAllUsers(usersData.data);
       } else if (activeTab === 'dsc') {
-        const dscsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dscs`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const dscsResponse = await apiFetch(`/api/dscs`);
         const dscsData = await dscsResponse.json();
         if (dscsData.success) setDscs(dscsData.data);
+      } else if (activeTab === 'applications') {
+        const applicationsResponse = await apiFetch(`/api/applications`);
+        const applicationsData = await applicationsResponse.json();
+        if (applicationsData.success) {
+          const filteredApplications = applicationsData.data.filter(
+            (app: any) => app.type === 'Application'
+          );
+          setApplications(filteredApplications);
+        }
+      } else if (activeTab === 'submissions') {
+        const submissionsResponse = await apiFetch(`/api/admin/submissions?status=pending,approved&type=Pre-Thesis,Final-Thesis`);
+        const submissionsData = await submissionsResponse.json();
+        if (submissionsData.success) {
+          setSubmissions(submissionsData.data);
+        }
       } else if (activeTab === 'roles') {
-        const membersResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/members`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const membersResponse = await apiFetch(`/api/users/members`);
         const membersData = await membersResponse.json();
         if (membersData.success) setMembers(membersData.data);
       }
@@ -117,14 +138,9 @@ export default function AdminDashboardPage() {
       return;
     }
 
-    const token = localStorage.getItem('authToken');
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/role`, {
+      const response = await apiFetch(`/api/users/${userId}/role`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({ role: newRole })
       });
 
@@ -150,7 +166,7 @@ export default function AdminDashboardPage() {
     setDscModal({ isOpen: true, mode, dsc });
   };
 
-  const openReviewForStudent = (applicationId: string) => {
+  const openReviewForStudent = (applicationId: number) => {
     setSelectedApplicationId(applicationId);
     setShowReviewSystem(true);
   };
@@ -375,7 +391,6 @@ export default function AdminDashboardPage() {
                     <div className="flex gap-2">
                       <ActionButton icon={Plus} onClick={() => setShowCreateDSC(true)} label="Create DSC" />
                       <ActionButton icon={UserPlus} onClick={() => setShowAddMembers(true)} label="Add Members" color="blue" />
-                      <ActionButton icon={UserCheck} onClick={() => setShowAssignRoles(true)} label="Assign Supervisors" color="green" />
                     </div>
                   </div>
                   <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
@@ -383,8 +398,6 @@ export default function AdminDashboardPage() {
                       <thead className="bg-slate-700/30">
                         <tr className="text-left text-sm text-slate-400">
                           <th className="px-6 py-3 font-medium">DSC Name</th>
-                          <th className="px-6 py-3 font-medium">Students</th>
-                          <th className="px-6 py-3 font-medium">Members</th>
                           <th className="px-6 py-3 font-medium">Formation Date</th>
                           <th className="px-6 py-3 font-medium">Status</th>
                           <th className="px-6 py-3 font-medium">Actions</th>
@@ -397,18 +410,6 @@ export default function AdminDashboardPage() {
                               <div>
                                 <p className="font-medium">{dsc.name}</p>
                                 <p className="text-xs text-slate-400">{dsc.description}</p>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm">
-                                <p className="font-medium text-blue-400">{/* Placeholder */}</p>
-                                <p className="text-xs text-slate-400">{/* Placeholder */}</p>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm">
-                                <p className="font-medium text-purple-400">{/* Placeholder */}</p>
-                                {/* Placeholder */}
                               </div>
                             </td>
                             <td className="px-6 py-4 text-slate-400">{new Date(dsc.formation_date).toLocaleDateString()}</td>
@@ -443,15 +444,6 @@ export default function AdminDashboardPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold mb-4">Applications</h2>
-                    <ActionButton 
-                      icon={FileText} 
-                      onClick={() => {
-                        setSelectedApplicationId(undefined);
-                        setShowReviewSystem(true);
-                      }} 
-                      label="Open Review System" 
-                      color="blue"
-                    />
                   </div>
                   <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
                     <table className="w-full">
@@ -469,7 +461,7 @@ export default function AdminDashboardPage() {
                         {applications.map(app => (
                           <tr key={app.id} className="border-t border-slate-700 hover:bg-slate-800/30">
                             <td className="px-6 py-4 font-mono text-sm text-purple-400">{app.id}</td>
-                            <td className="px-6 py-4">{/* Placeholder */}</td>
+                            <td className="px-6 py-4">{app.student_name}</td>
                             <td className="px-6 py-4">
                               <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs">
                                 {app.type}
@@ -532,24 +524,27 @@ export default function AdminDashboardPage() {
                             <td className="px-6 py-4 font-mono text-sm text-purple-400">{sub.id}</td>
                             <td className="px-6 py-4">
                               <div>
-                                <p className="font-medium">{/* Placeholder */}</p>
-                                <p className="text-xs text-slate-400">{/* Placeholder */}</p>
+                                <p className="font-medium">{sub.student_name}</p>
                               </div>
                             </td>
                             <td className="px-6 py-4 max-w-xs">
-                              <p className="truncate text-sm">{/* Placeholder */}</p>
+                              <p className="truncate text-sm">{sub.details}</p>
                             </td>
                             <td className="px-6 py-4">
                               <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs">
-                                {/* Placeholder */}
+                                {sub.type}
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-sm`}>
-                                {/* Placeholder */}
+                              <span className={`px-3 py-1 rounded-full text-sm ${
+                                sub.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' :
+                                sub.status === 'approved' ? 'bg-green-600/20 text-green-400' :
+                                'bg-red-600/20 text-red-400'
+                              }`}>
+                                {sub.status}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-slate-400">{/* Placeholder */}</td>
+                            <td className="px-6 py-4 text-slate-400">{new Date(sub.submission_date).toLocaleDateString()}</td>
                             <td className="px-6 py-4">
                               <button 
                                 onClick={() => openReviewSubmission(sub.id)}
@@ -568,13 +563,7 @@ export default function AdminDashboardPage() {
 
               {/* Settings Tab */}
               {activeTab === 'settings' && (
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
-                  <Shield className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Settings Coming Soon</h3>
-                  <p className="text-slate-400 max-w-md mx-auto">
-                    System configuration and admin preferences will be available here.
-                  </p>
-                </div>
+                <AdminChangePassword />
               )}
 
             </div>
@@ -589,7 +578,6 @@ export default function AdminDashboardPage() {
       <CreateMember isOpen={showCreateMember} onClose={() => setShowCreateMember(false)} onSuccess={handleRefresh} />
       <CreateDSC isOpen={showCreateDSC} onClose={() => setShowCreateDSC(false)} onSuccess={handleRefresh} />
       <AddMembers isOpen={showAddMembers} onClose={() => setShowAddMembers(false)} onSuccess={handleRefresh} />
-      <AssignRoles isOpen={showAssignRoles} onClose={() => setShowAssignRoles(false)} onSuccess={handleRefresh} />
       
       <ViewEditDeleteUser
         isOpen={userModal.isOpen}

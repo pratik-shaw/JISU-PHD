@@ -20,6 +20,8 @@ import {
   Download,
   Eye
 } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
+import FileViewer from '@/app/components/FileViewer';
 
 interface StudentProfileProps {
   studentId: number;
@@ -74,76 +76,24 @@ export default function ViewStudentProfile({ studentId, onClose }: StudentProfil
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [activeSection, setActiveSection] = useState<'overview' | 'proposals' | 'reports' | 'thesis'>('overview');
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
+  const [fileToViewUrl, setFileToViewUrl] = useState('');
+  const [fileToViewType, setFileToViewType] = useState('');
+  const apiFetch = useApi();
 
   useEffect(() => {
     fetchStudentData();
   }, [studentId]);
 
-  /**
-   * Fetch student profile data
-   * TODO: BACKEND REQUIRED - Replace with actual API call
-   * API Endpoint: GET /api/supervisor/students/{studentId}
-   * Expected Response: StudentData object
-   */
   const fetchStudentData = async () => {
     try {
       setLoading(true);
-      
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/supervisor/students/${studentId}`);
-      // const data = await response.json();
-      // setStudentData(data);
-      
-      // Mock data for demonstration
-      setTimeout(() => {
-        const mockData: StudentData = {
-          id: studentId,
-          name: studentId === 1 ? 'Alice Johnson' : studentId === 2 ? 'Bob Smith' : 'Carol White',
-          email: studentId === 1 ? 'alice@university.edu' : studentId === 2 ? 'bob@university.edu' : 'carol@university.edu',
-          phone: '+1 (555) 123-4567',
-          year: studentId === 1 ? '2nd Year' : studentId === 2 ? '3rd Year' : '1st Year',
-          status: 'Active',
-          enrollmentDate: studentId === 1 ? '2023-09-01' : studentId === 2 ? '2022-09-01' : '2024-09-01',
-          researchArea: studentId === 1 ? 'Machine Learning in Healthcare' : studentId === 2 ? 'Quantum Computing' : 'Blockchain Security',
-          department: 'Computer Science',
-          proposals: [
-            {
-              id: 1,
-              title: studentId === 1 ? 'ML in Medical Diagnosis' : studentId === 2 ? 'Quantum Algorithms' : 'Blockchain Protocols',
-              submittedDate: '2024-01-15',
-              status: studentId === 2 ? 'Approved' : 'Pending Review'
-            }
-          ],
-          reports: [
-            {
-              id: 1,
-              title: 'Q1 2024 Progress Report',
-              submittedDate: '2024-02-01',
-              status: studentId === 2 ? 'Reviewed' : 'Pending Review',
-              grade: studentId === 2 ? 'A' : undefined
-            }
-          ],
-          thesis: studentId === 2 ? [
-            {
-              id: 1,
-              type: 'pre-thesis',
-              title: 'Pre-Thesis: Quantum Computing Applications',
-              submittedDate: '2024-02-15',
-              status: 'Under Review'
-            }
-          ] : [],
-          stats: {
-            totalSubmissions: studentId === 2 ? 8 : studentId === 1 ? 5 : 2,
-            approved: studentId === 2 ? 6 : studentId === 1 ? 2 : 0,
-            pending: studentId === 2 ? 2 : studentId === 1 ? 3 : 2,
-            revisions: studentId === 2 ? 0 : studentId === 1 ? 1 : 0
-          }
-        };
-        
-        setStudentData(mockData);
-        setLoading(false);
-      }, 500);
-      
+      const res = await apiFetch(`/supervisor/students/${studentId}`);
+      const data = await res.json();
+      if (data.success) {
+        setStudentData(data.data);
+      }
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching student data:', error);
       setLoading(false);
@@ -151,17 +101,19 @@ export default function ViewStudentProfile({ studentId, onClose }: StudentProfil
   };
 
   const handleDownload = (documentId: number) => {
-    // TODO: BACKEND REQUIRED - Download document
-    // API Endpoint: GET /api/documents/{documentId}/download
-    console.log('Downloading document:', documentId);
-    alert('Download functionality will be implemented with backend');
+    const url = `/student/submissions/${documentId}/view`;
+    const link = document.createElement('a');
+    link.href = url;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleView = (documentId: number) => {
-    // TODO: BACKEND REQUIRED - View document
-    // API Endpoint: GET /api/documents/{documentId}
-    console.log('Viewing document:', documentId);
-    alert('Document viewer will be implemented with backend');
+    setFileToViewUrl(`/student/submissions/${documentId}/view`);
+    // This is a basic inference. A more robust solution would be to get the mimetype from the backend.
+    setFileToViewType('application/pdf');
+    setIsFileViewerOpen(true);
   };
 
   if (loading) {
@@ -481,6 +433,12 @@ export default function ViewStudentProfile({ studentId, onClose }: StudentProfil
           </button>
         </div>
       </div>
+      <FileViewer
+        isOpen={isFileViewerOpen}
+        onClose={() => setIsFileViewerOpen(false)}
+        fileUrl={fileToViewUrl}
+        fileType={fileToViewType}
+      />
     </div>
   );
 }

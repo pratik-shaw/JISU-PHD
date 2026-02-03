@@ -1,5 +1,4 @@
 /* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // FILE: app/co-supervisor-dash/Co-supervisorStudentView.tsx
 'use client';
@@ -22,6 +21,8 @@ import {
   Eye,
   UserCheck
 } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
+import FileViewer from '@/app/components/FileViewer';
 
 interface CoSupervisorStudentViewProps {
   studentId: number;
@@ -32,13 +33,7 @@ interface StudentData {
   id: number;
   name: string;
   email: string;
-  phone: string;
-  year: string;
   status: string;
-  enrollmentDate: string;
-  researchArea: string;
-  department: string;
-  primarySupervisor: string;
   
   // Academic Progress
   proposals: Array<{
@@ -80,98 +75,44 @@ export default function CoSupervisorStudentView({ studentId, onClose }: CoSuperv
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [activeSection, setActiveSection] = useState<'overview' | 'proposals' | 'reports' | 'thesis'>('overview');
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
+  const [fileToViewUrl, setFileToViewUrl] = useState('');
+  const [fileToViewType, setFileToViewType] = useState('');
+  const apiFetch = useApi();
 
   useEffect(() => {
     fetchStudentData();
   }, [studentId]);
 
-  /**
-   * Fetch student profile data
-   * TODO: BACKEND REQUIRED - Replace with actual API call
-   * API Endpoint: GET /api/co-supervisor/students/{studentId}
-   * Expected Response: StudentData object
-   */
   const fetchStudentData = async () => {
     try {
       setLoading(true);
-      
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/co-supervisor/students/${studentId}`);
-      // const data = await response.json();
-      // setStudentData(data);
-      
-      // Mock data for demonstration
-      setTimeout(() => {
-        const mockData: StudentData = {
-          id: studentId,
-          name: studentId === 1 ? 'Alice Johnson' : studentId === 2 ? 'Bob Smith' : 'Carol White',
-          email: studentId === 1 ? 'alice@university.edu' : studentId === 2 ? 'bob@university.edu' : 'carol@university.edu',
-          phone: '+1 (555) 123-4567',
-          year: studentId === 1 ? '2nd Year' : studentId === 2 ? '3rd Year' : '1st Year',
-          status: 'Active',
-          enrollmentDate: studentId === 1 ? '2023-09-01' : studentId === 2 ? '2022-09-01' : '2024-09-01',
-          researchArea: studentId === 1 ? 'Machine Learning in Healthcare' : studentId === 2 ? 'Quantum Computing' : 'Blockchain Security',
-          department: 'Computer Science',
-          primarySupervisor: studentId === 1 ? 'Prof. Smith' : studentId === 2 ? 'Prof. Johnson' : 'Prof. Davis',
-          proposals: [
-            {
-              id: 1,
-              title: studentId === 1 ? 'ML in Medical Diagnosis' : studentId === 2 ? 'Quantum Algorithms' : 'Blockchain Protocols',
-              submittedDate: '2024-01-15',
-              status: studentId === 2 ? 'Approved' : 'Pending Review',
-              primarySupervisorStatus: studentId === 2 ? 'Approved' : 'Under Review'
-            }
-          ],
-          reports: [
-            {
-              id: 1,
-              title: 'Q1 2024 Progress Report',
-              submittedDate: '2024-02-01',
-              status: studentId === 2 ? 'Reviewed' : 'Pending Review',
-              grade: studentId === 2 ? 'A' : undefined,
-              primarySupervisorStatus: studentId === 2 ? 'Reviewed' : 'Under Review'
-            }
-          ],
-          thesis: studentId === 2 ? [
-            {
-              id: 1,
-              type: 'pre-thesis',
-              title: 'Pre-Thesis: Quantum Computing Applications',
-              submittedDate: '2024-02-15',
-              status: 'Under Review',
-              primarySupervisorStatus: 'Under Review'
-            }
-          ] : [],
-          stats: {
-            totalSubmissions: studentId === 2 ? 8 : studentId === 1 ? 5 : 2,
-            approved: studentId === 2 ? 6 : studentId === 1 ? 2 : 0,
-            pending: studentId === 2 ? 2 : studentId === 1 ? 3 : 2,
-            revisions: studentId === 2 ? 0 : studentId === 1 ? 1 : 0
-          }
-        };
-        
-        setStudentData(mockData);
-        setLoading(false);
-      }, 500);
-      
+      const res = await apiFetch(`/api/co-supervisor/students/${studentId}`);
+      const data = await res.json();
+      if (data.success) {
+        setStudentData(data.data);
+      }
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching student data:', error);
       setLoading(false);
     }
   };
 
-  const handleDownload = (documentId: number) => {
-    // TODO: BACKEND REQUIRED - Download document
-    // API Endpoint: GET /api/documents/{documentId}/download
-    console.log('Downloading document:', documentId);
-    alert('Download functionality will be implemented with backend');
-  };
 
-  const handleView = (documentId: number) => {
-    // TODO: BACKEND REQUIRED - View document
-    // API Endpoint: GET /api/documents/{documentId}
-    console.log('Viewing document:', documentId);
-    alert('Document viewer will be implemented with backend');
+
+  const handleView = async (documentId: number) => {
+    try {
+      const res = await apiFetch(`/api/co-supervisor/submissions/${documentId}/view`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setFileToViewUrl(blobUrl);
+      setFileToViewType('application/pdf');
+      setIsFileViewerOpen(true);
+    } catch (error) {
+      console.error('Error fetching document for viewing:', error);
+      alert('Failed to load document for viewing.');
+    }
   };
 
   if (loading) {
@@ -213,7 +154,6 @@ export default function CoSupervisorStudentView({ studentId, onClose }: CoSuperv
             </div>
             <div>
               <h2 className="text-2xl font-bold">{studentData.name}</h2>
-              <p className="text-slate-400 text-sm mt-1">{studentData.year} • {studentData.department}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span className="inline-block px-3 py-1 bg-green-600/20 text-green-400 rounded-full text-sm">
                   {studentData.status}
@@ -238,7 +178,6 @@ export default function CoSupervisorStudentView({ studentId, onClose }: CoSuperv
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'proposals', label: 'Proposals' },
-            { id: 'reports', label: 'Reports' },
             { id: 'thesis', label: 'Thesis' }
           ].map((tab) => (
             <button
@@ -269,34 +208,6 @@ export default function CoSupervisorStudentView({ studentId, onClose }: CoSuperv
                     <div>
                       <p className="text-sm text-slate-400">Email</p>
                       <p className="text-slate-200">{studentData.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-teal-400" />
-                    <div>
-                      <p className="text-sm text-slate-400">Phone</p>
-                      <p className="text-slate-200">{studentData.phone}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5 text-teal-400" />
-                    <div>
-                      <p className="text-sm text-slate-400">Enrollment Date</p>
-                      <p className="text-slate-200">{studentData.enrollmentDate}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <BookOpen className="w-5 h-5 text-teal-400" />
-                    <div>
-                      <p className="text-sm text-slate-400">Research Area</p>
-                      <p className="text-slate-200">{studentData.researchArea}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 md:col-span-2">
-                    <UserCheck className="w-5 h-5 text-purple-400" />
-                    <div>
-                      <p className="text-sm text-slate-400">Primary Supervisor</p>
-                      <p className="text-slate-200 font-medium">{studentData.primarySupervisor}</p>
                     </div>
                   </div>
                 </div>
@@ -333,7 +244,7 @@ export default function CoSupervisorStudentView({ studentId, onClose }: CoSuperv
                   <div>
                     <p className="font-medium text-purple-300">Co-Supervisor Role</p>
                     <p className="text-sm text-slate-400 mt-1">
-                      You are viewing this student's profile as a co-supervisor. Primary supervision is handled by {studentData.primarySupervisor}.
+                      You are viewing this student's profile as a co-supervisor.
                     </p>
                   </div>
                 </div>
@@ -378,13 +289,6 @@ export default function CoSupervisorStudentView({ studentId, onClose }: CoSuperv
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDownload(proposal.id)}
-                            className="p-2 bg-slate-700 hover:bg-slate-600 rounded transition-colors"
-                            title="Download"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -394,68 +298,6 @@ export default function CoSupervisorStudentView({ studentId, onClose }: CoSuperv
                 <div className="text-center py-8 text-slate-400">
                   <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No proposals submitted yet</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Reports Section */}
-          {activeSection === 'reports' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold mb-4">Progress Reports</h3>
-              {studentData.reports.length > 0 ? (
-                <div className="space-y-3">
-                  {studentData.reports.map((report) => (
-                    <div key={report.id} className="bg-slate-900/50 rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-slate-200">{report.title}</h4>
-                          <p className="text-sm text-slate-400 mt-1">
-                            Submitted: {report.submittedDate}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            <span className={`inline-block px-3 py-1 rounded-full text-sm ${
-                              report.status === 'Reviewed' ? 'bg-blue-600/20 text-blue-400' :
-                              'bg-yellow-600/20 text-yellow-400'
-                            }`}>
-                              Co-Supervisor: {report.status}
-                            </span>
-                            {report.primarySupervisorStatus && (
-                              <span className="inline-block px-3 py-1 bg-purple-600/20 text-purple-400 rounded-full text-sm">
-                                Primary: {report.primarySupervisorStatus}
-                              </span>
-                            )}
-                            {report.grade && (
-                              <span className="inline-block px-3 py-1 bg-green-600/20 text-green-400 rounded-full text-sm">
-                                Grade: {report.grade}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleView(report.id)}
-                            className="p-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors"
-                            title="View"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDownload(report.id)}
-                            className="p-2 bg-slate-700 hover:bg-slate-600 rounded transition-colors"
-                            title="Download"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-slate-400">
-                  <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No reports submitted yet</p>
                 </div>
               )}
             </div>
@@ -503,13 +345,6 @@ export default function CoSupervisorStudentView({ studentId, onClose }: CoSuperv
                             title="View"
                           >
                             <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDownload(thesis.id)}
-                            className="p-2 bg-slate-700 hover:bg-slate-600 rounded transition-colors"
-                            title="Download"
-                          >
-                            <Download className="w-4 h-4" />
                           </button>
                         </div>
                       </div>

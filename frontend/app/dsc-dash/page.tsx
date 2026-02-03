@@ -1,6 +1,7 @@
-'use client';
-
-import { useState } from 'react';
+'use client'
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useApi } from '@/app/hooks/useApi';
 import {
   Menu,
   X,
@@ -15,14 +16,17 @@ import {
   AlertCircle,
   XCircle,
 } from 'lucide-react';
+import FileViewer from '../components/FileViewer'; // Import the FileViewer component
 
+// Define a type for your document structure if not already defined globally
 interface Document {
-  id: number;
+  id: string;
   student: string;
   supervisor: string;
   title: string;
-  date: string;
   status: string;
+  documentUrl: string;
+  type: string;
 }
 
 export default function DSCDashboardPage() {
@@ -30,58 +34,116 @@ export default function DSCDashboardPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [reviewModal, setReviewModal] = useState(false);
+  const [reviewMode, setReviewMode] = useState<'review' | 'reject'>('review');
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false); // State for file viewer modal
+  const [fileViewProps, setFileViewProps] = useState({ fileUrl: '', fileType: '' }); // State for file viewer props
   const [reviewText, setReviewText] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [proposals, setProposals] = useState<Document[]>([]);
+  const [preThesis, setPreThesis] = useState<Document[]>([]);
+  const [finalThesis, setFinalThesis] = useState<Document[]>([]);
+  const [pendingReviewsCount, setPendingReviewsCount] = useState(0);
+  const [approvedCount, setApprovedCount] = useState(0);
+  const [preThesisPendingDscApprovalCount, setPreThesisPendingDscApprovalCount] = useState(0);
+  const [finalThesisPendingDscApprovalCount, setFinalThesisPendingDscApprovalCount] = useState(0);
+  const [sentToAdminCount, setSentToAdminCount] = useState(0);
 
-  // Mock data - Replace with API calls
-  const proposals: Document[] = [
-    { id: 1, student: 'Alice Johnson', supervisor: 'Dr. Smith', title: 'ML in Healthcare', date: '2024-01-15', status: 'Pending' },
-    { id: 2, student: 'Bob Smith', supervisor: 'Dr. Jones', title: 'Quantum Computing', date: '2024-01-10', status: 'Reviewed' },
-  ];
+  const apiFetch = useApi();
+  const router = useRouter();
 
-  const reports: Document[] = [
-    { id: 1, student: 'Alice Johnson', supervisor: 'Dr. Smith', title: 'Q1 Progress Report', date: '2024-02-01', status: 'Pending' },
-  ];
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      router.push('/member-login');
+    }
+  }, [router]);
 
-  const preThesis: Document[] = [
-    { id: 1, student: 'Bob Smith', supervisor: 'Dr. Jones', title: 'Pre-Thesis Submission', date: '2024-02-15', status: 'Pending' },
-  ];
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/dsc-member/documents');
+      const data = await res.json();
+      if (data.success) {
+        setProposals(data.data.filter((doc: any) => doc.type === 'Proposal/Report' && doc.status === 'pending_dsc_approval'));
+        setPreThesis(data.data.filter((doc: any) => doc.type === 'Pre-Thesis' && doc.status === 'pending_dsc_approval'));
+        setFinalThesis(data.data.filter((doc: any) => doc.type === 'Final-Thesis' && doc.status === 'pending_dsc_approval'));
+        setPendingReviewsCount(data.pendingReviewsCount);
+        setApprovedCount(data.approvedCount); 
+        setPreThesisPendingDscApprovalCount(data.preThesisPendingDscApprovalCount);
+        setFinalThesisPendingDscApprovalCount(data.finalThesisPendingDscApprovalCount);
+        setSentToAdminCount(data.sentToAdminCount);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    }
+  }, [apiFetch, router]);
 
-  const finalThesis: Document[] = [
-    { id: 1, student: 'Carol White', supervisor: 'Dr. Brown', title: 'Final Thesis', date: '2024-03-01', status: 'Pending' },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const handleReview = (doc: Document) => {
+  const handleReview = (doc: Document, mode: 'review' | 'reject' = 'review') => {
     setSelectedDocument(doc);
+    setReviewMode(mode);
     setReviewModal(true);
   };
 
-  const submitReview = (decision: string) => {
-    console.log('Review:', { document: selectedDocument, decision, comments: reviewText });
-    alert(`Review submitted: ${decision.toUpperCase()}`);
-    setReviewModal(false);
-    setReviewText('');
+  const handleViewFile = async (doc: Document) => {
+    try {
+      const res = await apiFetch(`/api/dsc-member/submissions/${doc.id}/view`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setFileViewProps({ fileUrl: blobUrl, fileType: doc.documentUrl.split('.').pop() || '' });
+      setIsFileViewerOpen(true);
+    } catch (error) {
+      console.error('Error fetching document for viewing:', error);
+      alert('Failed to load document for viewing.');
+    }
   };
 
-  const sendToAdmin = (doc: Document) => {
-    console.log('Sending to Admin:', doc);
-    alert(`"${doc.title}" has been approved and sent to Admin for final approval`);
+
+  const submitReview = async (decision: string) => {
+    try {
+      await apiFetch('/api/dsc-member/reviews', {
+        method: 'POST',
+        body: JSON.stringify({
+          documentId: selectedDocument?.id,
+          decision,
+          comments: reviewText,
+        }),
+      });
+      alert(`Review submitted: ${decision.toUpperCase()}`);
+      setReviewModal(false);
+      setReviewText('');
+      fetchData(); // Refresh the data after successful submission
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+      alert('Failed to submit review');
+    }
+  };
+
+  const sendToAdmin = async (doc: Document) => {
+    try {
+      await apiFetch(`/api/dsc-member/documents/${doc.id}/forward`, {
+        method: 'POST',
+      });
+      alert(`"${doc.title}" has been approved and sent to Admin for final approval`);
+      fetchData(); // Refresh the data after successful submission
+    } catch (error) {
+      console.error('Failed to forward document:', error);
+      alert('Failed to forward document');
+    }
   };
 
   const handleLogout = () => {
     if (confirm('Are you sure you want to logout?')) {
-      // Clear any stored authentication data
-      // localStorage.removeItem('authToken'); // Uncomment when you have auth
-      // sessionStorage.clear(); // Uncomment if needed
-      
-      // Redirect to home page
-      window.location.href = '/';
+      localStorage.removeItem('authToken');
+      router.push('/');
     }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     // Validate inputs
     if (!currentPassword || !newPassword || !confirmPassword) {
       alert('Please fill in all password fields');
@@ -98,14 +160,21 @@ export default function DSCDashboardPage() {
       return;
     }
 
-    // Here you would make an API call to change the password
-    console.log('Changing password...');
-    alert('Password changed successfully!');
-    
-    // Clear fields
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      await apiFetch('/api/me/password', {
+        method: 'PUT',
+        body: JSON.stringify({ oldPassword: currentPassword, newPassword: newPassword }),
+      });
+      alert('Password changed successfully!');
+      
+      // Clear fields
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('Failed to change password:', error);
+      alert(`Failed to change password: ${error.message}`);
+    }
   };
 
   return (
@@ -117,8 +186,7 @@ export default function DSCDashboardPage() {
           <nav className="space-y-2 flex-1">
             {[
               { label: 'Dashboard', tab: 'dashboard' },
-              { label: 'Proposals', tab: 'proposals' },
-              { label: 'Reports', tab: 'reports' },
+              { label: 'Proposals / Reports', tab: 'proposals' },
               { label: 'Pre-Thesis', tab: 'pre-thesis' },
               { label: 'Final Thesis', tab: 'final-thesis' },
               { label: 'Settings', tab: 'settings' },
@@ -182,28 +250,28 @@ export default function DSCDashboardPage() {
                 <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-xl p-6">
                   <div className="flex justify-between items-center mb-2">
                     <Clock className="w-8 h-8" />
-                    <span className="text-3xl font-bold">{proposals.filter(p => p.status === 'Pending').length + reports.filter(r => r.status === 'Pending').length}</span>
+                    <span className="text-3xl font-bold">{pendingReviewsCount}</span>
                   </div>
                   <p className="text-sm">Pending Reviews</p>
                 </div>
                 <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
                   <div className="flex justify-between items-center mb-2">
                     <CheckCircle className="w-8 h-8" />
-                    <span className="text-3xl font-bold">2</span>
+                    <span className="text-3xl font-bold">{approvedCount}</span>
                   </div>
                   <p className="text-sm">Approved</p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-6">
                   <div className="flex justify-between items-center mb-2">
                     <FileCheck className="w-8 h-8" />
-                    <span className="text-3xl font-bold">{preThesis.length + finalThesis.length}</span>
+                    <span className="text-3xl font-bold">{preThesisPendingDscApprovalCount + finalThesisPendingDscApprovalCount}</span>
                   </div>
                   <p className="text-sm">Thesis Reviews</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6">
                   <div className="flex justify-between items-center mb-2">
                     <Send className="w-8 h-8" />
-                    <span className="text-3xl font-bold">1</span>
+                    <span className="text-3xl font-bold">{sentToAdminCount}</span>
                   </div>
                   <p className="text-sm">Sent to Admin</p>
                 </div>
@@ -214,7 +282,7 @@ export default function DSCDashboardPage() {
           {/* Proposals */}
           {activeTab === 'proposals' && (
             <div className="max-w-7xl mx-auto">
-              <h2 className="text-2xl font-bold mb-4">Research Proposals</h2>
+              <h2 className="text-2xl font-bold mb-4">Research Proposals/Reports </h2>
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-slate-700/30">
@@ -233,61 +301,17 @@ export default function DSCDashboardPage() {
                         <td className="px-6 py-4 text-slate-400">{p.supervisor}</td>
                         <td className="px-6 py-4">{p.title}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-sm ${p.status === 'Pending' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-blue-600/20 text-blue-400'}`}>
+                          <span className={`px-3 py-1 rounded-full text-sm ${p.status === 'under_review' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-blue-600/20 text-blue-400'}`}>
                             {p.status}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            <button className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
+                            <button onClick={() => handleViewFile(p)} className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
                               <Eye className="w-4 h-4" />
                               View
                             </button>
                             <button onClick={() => handleReview(p)} className="flex items-center gap-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-sm">
-                              <MessageSquare className="w-4 h-4" />
-                              Review
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Reports */}
-          {activeTab === 'reports' && (
-            <div className="max-w-7xl mx-auto">
-              <h2 className="text-2xl font-bold mb-4">Progress Reports</h2>
-              <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-slate-700/30">
-                    <tr className="text-left text-sm text-slate-400">
-                      <th className="px-6 py-3">Student</th>
-                      <th className="px-6 py-3">Supervisor</th>
-                      <th className="px-6 py-3">Title</th>
-                      <th className="px-6 py-3">Status</th>
-                      <th className="px-6 py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.map(r => (
-                      <tr key={r.id} className="border-t border-slate-700 hover:bg-slate-800/30">
-                        <td className="px-6 py-4">{r.student}</td>
-                        <td className="px-6 py-4 text-slate-400">{r.supervisor}</td>
-                        <td className="px-6 py-4">{r.title}</td>
-                        <td className="px-6 py-4">
-                          <span className="px-3 py-1 bg-yellow-600/20 text-yellow-400 rounded-full text-sm">{r.status}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-                              <Eye className="w-4 h-4" />
-                              View
-                            </button>
-                            <button onClick={() => handleReview(r)} className="flex items-center gap-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-sm">
                               <MessageSquare className="w-4 h-4" />
                               Review
                             </button>
@@ -327,13 +351,13 @@ export default function DSCDashboardPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            <button className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-                              <Download className="w-4 h-4" />
-                              Download
+                            <button onClick={() => handleViewFile(t)} className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
+                              <Eye className="w-4 h-4" />
+                              View
                             </button>
-                            <button onClick={() => handleReview(t)} className="flex items-center gap-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-sm">
-                              <MessageSquare className="w-4 h-4" />
-                              Review
+                            <button onClick={() => handleReview(t, 'reject')} className="flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm">
+                              <XCircle className="w-4 h-4" />
+                              Reject
                             </button>
                             <button onClick={() => sendToAdmin(t)} className="flex items-center gap-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm">
                               <Send className="w-4 h-4" />
@@ -375,13 +399,13 @@ export default function DSCDashboardPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            <button className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-                              <Download className="w-4 h-4" />
-                              Download
+                            <button onClick={() => handleViewFile(t)} className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
+                              <Eye className="w-4 h-4" />
+                              View
                             </button>
-                            <button onClick={() => handleReview(t)} className="flex items-center gap-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-sm">
-                              <MessageSquare className="w-4 h-4" />
-                              Review
+                            <button onClick={() => handleReview(t, 'reject')} className="flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm">
+                              <XCircle className="w-4 h-4" />
+                              Reject
                             </button>
                             <button onClick={() => sendToAdmin(t)} className="flex items-center gap-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm">
                               <Send className="w-4 h-4" />
@@ -485,20 +509,15 @@ export default function DSCDashboardPage() {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button 
-                  onClick={() => submitReview('approved')}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Approve
-                </button>
-                <button 
-                  onClick={() => submitReview('revision')}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  Request Revision
-                </button>
+                {reviewMode === 'review' && (
+                  <button 
+                    onClick={() => submitReview('approved')}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Approve
+                  </button>
+                )}
                 <button 
                   onClick={() => submitReview('rejected')}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg"
@@ -511,6 +530,13 @@ export default function DSCDashboardPage() {
           </div>
         </div>
       )}
+
+      <FileViewer 
+        isOpen={isFileViewerOpen}
+        onClose={() => setIsFileViewerOpen(false)}
+        fileUrl={fileViewProps.fileUrl}
+        fileType={fileViewProps.fileType}
+      />
     </div>
   );
 }

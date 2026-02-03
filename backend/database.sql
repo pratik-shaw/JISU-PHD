@@ -8,6 +8,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     role ENUM('admin', 'dsc_member', 'supervisor', 'co_supervisor', 'student') NOT NULL,
+    unique_id VARCHAR(255) UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -16,12 +17,13 @@ CREATE TABLE users (
 CREATE TABLE students (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    student_id VARCHAR(255) UNIQUE, -- e.g., JIS2024001
+    dsc_id INT, -- Added DSC ID for direct linkage
     program VARCHAR(255),
     status ENUM('pending', 'active', 'rejected', 'graduated') NOT NULL DEFAULT 'pending',
     application_date DATE,
     enrollment_date DATE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (dsc_id) REFERENCES dscs(id) ON DELETE SET NULL -- Or ON DELETE CASCADE, depending on business logic
 );
 
 -- DSC (Departmental Scrutiny Committee) Table
@@ -45,59 +47,36 @@ CREATE TABLE dsc_members (
     UNIQUE(user_id, dsc_id)
 );
 
--- Student-Supervisor Junction Table: Links students to their supervisors and co-supervisors.
-CREATE TABLE student_supervisors (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    supervisor_id INT NOT NULL,
-    supervisor_role ENUM('supervisor', 'co_supervisor') NOT NULL,
-    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (supervisor_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE(student_id, supervisor_id)
-);
-
--- Applications Table: For various student applications (registration, extension, etc.)
-CREATE TABLE applications (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    type VARCHAR(255) NOT NULL,
-    status ENUM('pending', 'under_review', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
-    submission_date DATE,
-    details TEXT,
-    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
-);
 
 -- Submissions Table: For pre-thesis, final thesis, etc.
 CREATE TABLE submissions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT NOT NULL,
-    type VARCHAR(255) NOT NULL, -- e.g., 'pre-thesis', 'final-thesis'
+    type VARCHAR(255) NOT NULL,
     title VARCHAR(255),
     abstract TEXT,
     document_url VARCHAR(255),
-    status ENUM('pending', 'under_review', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    status ENUM(
+        'pending',
+        'under_review',
+        'approved',
+        'rejected',
+        'pending_co_supervisor_approval',
+        'pending_supervisor_approval',
+        'pending_dsc_approval'
+    ) NOT NULL DEFAULT 'pending',
     submission_date DATE,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
--- Proposals Table
-CREATE TABLE proposals (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    details TEXT,
-    status ENUM('pending', 'under_review', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
-    submission_date DATE,
-    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
-);
 
--- Reports Table
-CREATE TABLE reports (
+-- Feedback Table: Stores feedback/comments on submissions.
+CREATE TABLE feedback (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    details TEXT,
-    status ENUM('pending', 'under_review', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
-    submission_date DATE,
-    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+    submission_id INT NOT NULL,
+    user_id INT NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

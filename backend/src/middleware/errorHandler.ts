@@ -17,6 +17,7 @@ const errorHandler = (err: any, req: Request, res: Response, next: NextFunction)
     name: err.name,
   });
 
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // Explicitly set CORS header for errors
   if (err instanceof ApiError) {
     return res.status(err.status).json({ message: err.message });
   }

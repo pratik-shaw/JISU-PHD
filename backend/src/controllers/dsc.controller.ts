@@ -40,12 +40,24 @@ const deleteDsc = asyncHandler(async (req: Request, res: Response, next: NextFun
     res.status(204).send();
 });
 
+const removeAllSupervisors = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    await DscService.removeAllSupervisors(Number(req.params.id));
+    res.status(204).send();
+});
+
+const removeAllMembers = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    await DscService.removeAllMembers(Number(req.params.id));
+    res.status(204).send();
+});
+
 export const DscController = {
     createDsc,
     getAllDscs,
     getDscById,
     updateDsc,
     deleteDsc,
+    removeAllSupervisors,
+    removeAllMembers,
 
     addMemberToDsc: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
         await DscService.addMemberToDsc(req.body);
@@ -59,5 +71,30 @@ export const DscController = {
         const { userId, dscId } = req.params;
         await DscService.removeMemberFromDsc(Number(userId), Number(dscId));
         res.status(204).send();
+    }),
+
+    getDscMembers: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+        const members = await DscService.getDscMembers(Number(req.params.id));
+        res.status(200).json({
+            success: true,
+            data: members,
+        });
+    }),
+
+    getDscStudents: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+        const students = await DscService.getDscStudents(Number(req.params.id));
+        res.status(200).json({
+            success: true,
+            data: students,
+        });
+    }),
+    addStudentsToDsc: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+        const { id } = req.params;
+        const { studentIds } = req.body;
+        await DscService.addStudentsToDsc(Number(id), studentIds);
+        res.status(200).json({
+            success: true,
+            message: 'Students added to DSC successfully',
+        });
     }),
 };

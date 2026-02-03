@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { X, User, Mail, Lock, Hash } from 'lucide-react';
+import { useApi } from '@/app/hooks/useApi';
 
 interface CreateStudentProps {
   isOpen: boolean;
@@ -13,13 +14,13 @@ interface CreateStudentProps {
 
 export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStudentProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    universityId: ''
-  });
-  const [loading, setLoading] = useState(false);
+              name: '',
+            email: '',
+            password: '',
+            uniqueId: ''
+          });  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const apiFetch = useApi();
 
   /**
    * Handle form input changes
@@ -44,7 +45,7 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
     e.preventDefault();
     
     // Basic validation
-    if (!formData.name || !formData.email || !formData.password || !formData.universityId) {
+    if (!formData.name || !formData.email || !formData.password || !formData.uniqueId) {
       setError('All fields are required');
       return;
     }
@@ -66,23 +67,14 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        throw new Error('Authentication token not found.');
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
+      const response = await apiFetch(`/api/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
           password: formData.password,
           role: 'student', // Always 'student' for this modal
-          // universityId: formData.universityId // This needs to be handled in the backend
+          uniqueId: formData.uniqueId
         })
       });
 
@@ -98,7 +90,7 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
         name: '',
         email: '',
         password: '',
-        universityId: ''
+        uniqueId: ''
       });
 
       if (onSuccess) {
@@ -209,21 +201,21 @@ export default function CreateStudent({ isOpen, onClose, onSuccess }: CreateStud
             <p className="text-xs text-slate-400 mt-1">Minimum 8 characters</p>
           </div>
 
-          {/* University ID Field */}
+          {/* Unique ID Field */}
           <div>
-            <label htmlFor="universityId" className="block text-sm font-medium text-slate-300 mb-2">
-              University ID
+            <label htmlFor="uniqueId" className="block text-sm font-medium text-slate-300 mb-2">
+              Unique ID
             </label>
             <div className="relative">
               <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
-                id="universityId"
-                name="universityId"
-                value={formData.universityId}
+                id="uniqueId"
+                name="uniqueId"
+                value={formData.uniqueId}
                 onChange={handleChange}
                 className="w-full bg-slate-900/50 border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                placeholder="Enter university ID"
+                placeholder="Enter unique ID"
                 disabled={loading}
                 required
               />

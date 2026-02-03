@@ -12,13 +12,63 @@ export const ApplicationRepository = {
     return insertResult.insertId;
   },
 
-  async findAll(): Promise<Application[]> {
-    const [rows] = await pool.execute('SELECT * FROM applications');
+  async findAll(filters: { status?: string; type?: string } = {}): Promise<Application[]> {
+    let query = `
+      SELECT
+        s.id,
+        s.student_id,
+        s.type,
+        s.status,
+        s.submission_date,
+        s.title,
+        s.abstract,
+        s.document_url,
+        u.name as student_name
+      FROM submissions s
+      JOIN students st ON s.student_id = st.id
+      JOIN users u ON st.user_id = u.id
+    `;
+
+    const whereClauses: string[] = [];
+    const params: any[] = [];
+
+    if (filters.status) {
+      const statuses = filters.status.split(',');
+      whereClauses.push(`s.status IN (${statuses.map(() => '?').join(',')})`);
+      params.push(...statuses);
+    }
+
+    if (filters.type) {
+      const types = filters.type.split(',');
+      whereClauses.push(`s.type IN (${types.map(() => '?').join(',')})`);
+      params.push(...types);
+    }
+
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(' AND ')}`;
+    }
+
+    const [rows] = await pool.execute(query, params);
     return rows as Application[];
   },
 
   async findById(id: number): Promise<Application | null> {
-    const [rows] = await pool.execute('SELECT * FROM applications WHERE id = ?', [id]);
+    const [rows] = await pool.execute(`
+      SELECT
+        s.id,
+        s.student_id,
+        s.type,
+        s.status,
+        s.submission_date,
+        s.title,
+        s.abstract,
+        s.document_url, -- Include document_url
+        u.name as student_name
+      FROM submissions s
+      JOIN students st ON s.student_id = st.id
+      JOIN users u ON st.user_id = u.id
+      WHERE s.id = ? AND s.type = 'Application'
+    `, [id]);
     const applications = rows as Application[];
     return applications.length > 0 ? applications[0] : null;
   },
@@ -30,7 +80,7 @@ export const ApplicationRepository = {
 
   async updateStatus(id: number, status: ApplicationStatus): Promise<boolean> {
     const [result] = await pool.execute(
-      'UPDATE applications SET status = ? WHERE id = ?',
+      'UPDATE submissions SET status = ? WHERE id = ? AND type = "Application"',
       [status, id]
     );
     const updateResult = result as any;
@@ -45,7 +95,7 @@ export const ApplicationRepository = {
 
   async countByStatus(status: ApplicationStatus): Promise<number> {
     const [rows] = await pool.execute(
-      'SELECT COUNT(*) as count FROM applications WHERE status = ?',
+      'SELECT COUNT(*) as count FROM submissions WHERE status = ? AND type = "Application"',
       [status]
     );
     const result = rows as any[];
