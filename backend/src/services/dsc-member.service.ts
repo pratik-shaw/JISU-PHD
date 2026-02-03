@@ -11,7 +11,8 @@ export class DscMemberService {
   async getAssignedDocuments(dscMemberId: number) {
     const documents = await this.dscMemberRepository.getAssignedDocuments(dscMemberId);
     const pendingReviewsCount = await this.dscMemberRepository.getUnderReviewSubmissionsCount(dscMemberId);
-    return { documents, pendingReviewsCount };
+    const approvedCount = await this.dscMemberRepository.getApprovedSubmissionsCount(dscMemberId);
+    return { documents, pendingReviewsCount, approvedCount };
   }
 
   async submitReview(

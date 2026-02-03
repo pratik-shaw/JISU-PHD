@@ -89,6 +89,25 @@ export const DscService = {
 
   async getDscStudents(dscId: number): Promise<any[]> {
     return DscRepository.findStudentsByDscId(dscId);
+  },
+
+  async addStudentsToDsc(dscId: number, studentIds: number[]): Promise<void> {
+    const dsc = await DscRepository.findById(dscId);
+    if (!dsc) {
+      throw new ApiError(404, 'DSC not found');
+    }
+
+    for (const studentId of studentIds) {
+      const student = await UserRepository.findById(studentId);
+      if (!student) {
+        throw new ApiError(404, `Student with id ${studentId} not found`);
+      }
+      if (student.role !== 'student') {
+        throw new ApiError(400, `User with id ${studentId} is not a student`);
+      }
+    }
+
+    await DscRepository.addStudentsToDsc(dscId, studentIds);
   }
 };
 

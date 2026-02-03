@@ -11,8 +11,8 @@ export class DscMemberController {
 
   async getAssignedDocuments(req: AuthenticatedRequest, res: Response) {
     const dscMemberId = req.user!.id;
-    const { documents, pendingReviewsCount } = await this.dscMemberService.getAssignedDocuments(dscMemberId);
-    res.status(200).json({ success: true, data: documents, pendingReviewsCount });
+    const { documents, pendingReviewsCount, approvedCount } = await this.dscMemberService.getAssignedDocuments(dscMemberId);
+    res.status(200).json({ success: true, data: documents, pendingReviewsCount, approvedCount });
   }
 
   async submitReview(req: AuthenticatedRequest, res: Response) {

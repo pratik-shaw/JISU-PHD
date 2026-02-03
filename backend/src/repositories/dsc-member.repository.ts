@@ -35,10 +35,30 @@ export class DscMemberRepository {
       SELECT COUNT(s.id) as count
       FROM submissions s
       JOIN students st ON s.student_id = st.id
-      WHERE s.status = 'pending_dsc_approval'
+      JOIN dsc_members dsm ON st.dsc_id = dsm.dsc_id
+      WHERE dsm.user_id = ? AND s.status = 'pending_dsc_approval'
       `,
+      [dscMemberId]
     );
     console.log('Query result:', (rows as any)[0]);
+    return (rows as any)[0].count;
+  }
+
+  async getApprovedSubmissionsCount(dscMemberId: number): Promise<number> {
+    console.log(`Fetching approved submissions count for dscMemberId: ${dscMemberId}`);
+    const [rows] = await db.query(
+      `
+      SELECT COUNT(s.id) as count
+      FROM submissions s
+      JOIN students st ON s.student_id = st.id
+      JOIN dsc_members dsm ON st.dsc_id = dsm.dsc_id
+      WHERE dsm.user_id = ? 
+        AND s.status = 'approved'
+        AND s.type NOT IN ('Pre-Thesis', 'Final-Thesis')
+      `,
+      [dscMemberId]
+    );
+    console.log('Approved submissions query result:', (rows as any)[0]);
     return (rows as any)[0].count;
   }
 }

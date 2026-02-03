@@ -191,17 +191,21 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
         await apiFetch(`/api/dscs/members`, {
           method: 'POST',
           body: JSON.stringify({
-            userId: member.memberId,
+            userId: parseInt(member.memberId, 10),
             dscId: dscId,
             role: 'Member', // Default role, can be changed later
           }),
         });
       }
       
-      // TODO: Associate students with the DSC. This will likely require another API endpoint.
-      // For now, we'll just log the students that would be associated.
-      console.log('Students to associate with DSC:', selectedStudents);
-
+      // Associate students with the DSC
+      if (selectedStudents.length > 0) {
+        const studentIds = selectedStudents.map(s => parseInt(s.studentId, 10));
+        await apiFetch(`/api/dscs/${dscId}/students`, {
+          method: 'PUT',
+          body: JSON.stringify({ studentIds }),
+        });
+      }
 
       if (onSuccess) onSuccess();
       
@@ -214,7 +218,7 @@ export default function CreateDSC({ isOpen, onClose, onSuccess }: CreateDSCProps
       setSelectedMembers([]);
       
       onClose();
-      alert(`Successfully created DSC and added ${selectedMembers.length} members!`);
+      alert(`Successfully created DSC, added ${selectedMembers.length} members, and associated ${selectedStudents.length} students!`);
 
     } catch (err: any) {
       setError(err.message || 'An error occurred while creating DSCs');

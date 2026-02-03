@@ -22,6 +22,7 @@ router.delete('/:id/members', DscController.removeAllMembers);
 
 // Member management
 router.post('/members', validate(addMemberToDscSchema), DscController.addMemberToDsc);
+router.put('/:id/students', DscController.addStudentsToDsc);
 router.delete('/:dscId/members/:userId', DscController.removeMemberFromDsc);
 
 export default router;

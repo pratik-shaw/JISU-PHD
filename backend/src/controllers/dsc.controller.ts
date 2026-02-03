@@ -88,4 +88,13 @@ export const DscController = {
             data: students,
         });
     }),
+    addStudentsToDsc: asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+        const { id } = req.params;
+        const { studentIds } = req.body;
+        await DscService.addStudentsToDsc(Number(id), studentIds);
+        res.status(200).json({
+            success: true,
+            message: 'Students added to DSC successfully',
+        });
+    }),
 };
