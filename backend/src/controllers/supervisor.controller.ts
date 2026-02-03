@@ -44,6 +44,12 @@ const forwardToAdmin = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json({ success: true, message: 'Document forwarded to admin successfully' });
 });
 
+const forwardDocumentToDsc = asyncHandler(async (req: Request, res: Response) => {
+  const documentId = Number(req.params.id);
+  await SupervisorService.forwardDocumentToDsc(documentId);
+  res.status(200).json({ success: true, message: 'Document forwarded to DSC successfully' });
+});
+
 const changePassword = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const { currentPassword, newPassword } = req.body;
@@ -58,5 +64,6 @@ export const SupervisorController = {
   viewSubmissionFile,
   submitReview,
   forwardToAdmin,
+  forwardDocumentToDsc,
   changePassword,
 };

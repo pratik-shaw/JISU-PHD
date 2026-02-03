@@ -14,6 +14,7 @@ router.get('/documents', SupervisorController.getReviewDocuments);
 router.get('/submissions/:id/view', SupervisorController.viewSubmissionFile);
 router.post('/reviews', SupervisorController.submitReview);
 router.post('/documents/:id/forward-to-admin', SupervisorController.forwardToAdmin);
+router.post('/documents/:id/forward-to-dsc', SupervisorController.forwardDocumentToDsc);
 router.put('/change-password', SupervisorController.changePassword);
 
 export default router;

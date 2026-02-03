@@ -1,8 +1,20 @@
 /* eslint-disable react-hooks/immutability */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '@/app/hooks/useApi';
 import { X, FileText, Download, CheckCircle, XCircle, Clock, User, Calendar, AlertCircle, Eye, MessageSquare } from 'lucide-react';
+import FileViewer from '@/app/components/FileViewer';
+
+interface Submission {
+  id: number;
+  title: string;
+  abstract: string;
+  document_url: string;
+  student_id: number;
+  submission_date: string;
+  status: 'pending' | 'approved' | 'rejected';
+  type: string;
+  feedback: { user_role: string; comment: string }[];
+}
 
 interface ReviewSubmissionProps {
   isOpen: boolean;
@@ -12,72 +24,110 @@ interface ReviewSubmissionProps {
 }
 
 export default function ReviewSubmission({ isOpen, onClose, submissionId, onSuccess }: ReviewSubmissionProps) {
-  const [activeSubmission, setActiveSubmission] = useState<any>(null);
+  const [activeSubmission, setActiveSubmission] = useState<Submission | null>(null);
   const [decision, setDecision] = useState<'approved' | 'rejected' | null>(null);
   const [adminComments, setAdminComments] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
+  const [fileViewProps, setFileViewProps] = useState({ fileUrl: '', fileType: '' });
   const apiFetch = useApi();
 
-  useEffect(() => {
-    if (isOpen && submissionId) {
-      const fetchSubmission = async () => {
-        try {
-          const response = await apiFetch(`/api/admin/submissions/${submissionId}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch submission');
-          }
-          const data = await response.json();
-          setActiveSubmission(data.data);
-        } catch (error) {
-          console.error('Failed to fetch submission:', error);
-        }
-      };
-      fetchSubmission();
-    }
-  }, [isOpen, submissionId, apiFetch]);
+  const handleClose = useCallback(() => {
+    setActiveSubmission(null);
+    setDecision(null);
+    setAdminComments('');
+    onClose();
+  }, [onClose]);
 
-  const handleSubmitReview = async () => {
-    if (!decision) {
-      alert('Please select Approve or Reject');
-      return;
-    }
-
-    if (!adminComments.trim()) {
-      alert('Please provide comments for your decision');
-      return;
-    }
+  const fetchSubmission = useCallback(async () => {
+    if (!submissionId) return;
 
     setLoading(true);
-
-    console.log('Submitting review for submission ID:', activeSubmission.id);
-
     try {
-      const response = await apiFetch(`/api/admin/submissions/${activeSubmission.id}/review`, {
+      const response = await apiFetch(`/api/admin/submissions/${submissionId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch submission');
+      }
+      const data = await response.json();
+      const submissionData = data.data;
+      setActiveSubmission(submissionData);
+
+      // Pre-fill fields if the submission has been reviewed before
+      if (submissionData.status !== 'pending' && (submissionData.status === 'approved' || submissionData.status === 'rejected')) {
+        setDecision(submissionData.status);
+      }
+
+      if (submissionData.feedback && submissionData.feedback.length > 0) {
+        const adminFeedback = submissionData.feedback.find((f) => f.user_role === 'admin');
+        if (adminFeedback) {
+          setAdminComments(adminFeedback.comment);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch submission:', error);
+      alert('Failed to load submission details.');
+      handleClose();
+    } finally {
+      setLoading(false);
+    }
+  }, [submissionId, apiFetch, handleClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchSubmission();
+    } else {
+      setActiveSubmission(null);
+    }
+  }, [isOpen, fetchSubmission]);
+
+  const handleViewFile = async (submissionId: number) => {
+    try {
+      const res = await apiFetch(`/api/admin/submissions/${submissionId}/view`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setFileViewProps({ fileUrl: blobUrl, fileType: 'application/pdf' });
+      setIsFileViewerOpen(true);
+    } catch (error) {
+      console.error('Error fetching document for viewing:', error);
+      alert('Failed to load document for viewing.');
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!decision || !adminComments.trim() || !submissionId) {
+      alert('Please select a decision and provide comments before submitting.');
+      return;
+    }
+  
+    setLoading(true);
+    try {
+      const response = await apiFetch(`/api/admin/submissions/${submissionId}/review`, {
         method: 'POST',
         body: JSON.stringify({
           decision,
           adminComments,
         }),
       });
-
+  
       if (!response.ok) {
-        throw new Error('Failed to submit review');
+        const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
+        throw new Error(errorData.message || 'Failed to submit the review. Please try again.');
       }
-
-      alert(`Submission ${decision === 'approved' ? 'approved' : 'rejected'} successfully!`);
+  
+      await response.json();
+  
+      alert('Review submitted successfully!');
       onSuccess();
-      onClose(); // Close the modal after successful review
+      handleClose();
+  
     } catch (error) {
-      console.error('Failed to submit review:', error);
-      alert('Failed to submit review. Please try again.');
+      console.error('Error submitting review:', error);
+      alert(`Error: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownload = (docName: string) => {
-    alert(`Downloading ${docName}...`);
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -86,13 +136,6 @@ export default function ReviewSubmission({ isOpen, onClose, submissionId, onSucc
       case 'pending': return 'text-yellow-400 bg-yellow-600/20';
       default: return 'text-slate-400 bg-slate-600/20';
     }
-  };
-
-  const handleClose = () => {
-    setActiveSubmission(null);
-    setDecision(null);
-    setAdminComments('');
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -120,7 +163,11 @@ export default function ReviewSubmission({ isOpen, onClose, submissionId, onSucc
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {activeSubmission ? (
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : activeSubmission ? (
             <div className="space-y-6">
               {/* Submission Details */}
               <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-6">
@@ -165,11 +212,11 @@ export default function ReviewSubmission({ isOpen, onClose, submissionId, onSucc
                           </div>
                         </div>
                         <button
-                          onClick={() => handleDownload(activeSubmission.document_url)}
+                          onClick={() => handleViewFile(activeSubmission.id)}
                           className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors"
                         >
-                          <Download className="w-4 h-4" />
-                          Download
+                          <Eye className="w-4 h-4" />
+                          View
                         </button>
                       </div>
                   </div>
@@ -276,10 +323,18 @@ export default function ReviewSubmission({ isOpen, onClose, submissionId, onSucc
               )}
             </div>
           ) : (
-            <p>Loading submission...</p>
+            <div className="flex items-center justify-center h-full">
+              <p className="text-slate-400">No submission selected.</p>
+            </div>
           )}
         </div>
       </div>
+      <FileViewer
+        isOpen={isFileViewerOpen}
+        onClose={() => setIsFileViewerOpen(false)}
+        fileUrl={fileViewProps.fileUrl}
+        fileType={fileViewProps.fileType}
+      />
     </div>
   );
 }

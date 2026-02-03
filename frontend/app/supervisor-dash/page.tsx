@@ -2,7 +2,7 @@
 // FILE: app/supervisor-dash/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
@@ -70,66 +70,51 @@ export default function SupervisorDashboardPage() {
   const apiFetch = useApi();
   const router = useRouter();
 
-  const handleView = async (submission: any) => {
+  const fetchData = useCallback(async () => {
+    // Fetch Students
     try {
-      const res = await apiFetch(`/api/supervisor/submissions/${submission.id}/view`);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      setFileToViewUrl(blobUrl);
-      // This is a basic inference. A more robust solution would be to get the mimetype from the backend.
-      setFileToViewType(submission.document_url?.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-      setIsFileViewerOpen(true);
-    } catch (error) {
-      console.error('Error fetching document for viewing:', error);
-      alert('Failed to load document for viewing.');
+      setLoadingStudents(true);
+      const res = await apiFetch('/api/supervisor/students');
+      const data = await res.json();
+      if (data.success) {
+        setStudents(data.data);
+      } else {
+        throw new Error(data.message || 'Failed to fetch students');
+      }
+    } catch (error: any) {
+      setErrorStudents(error.message || 'Failed to fetch students');
+      console.error('Failed to fetch students:', error);
+    } finally {
+      setLoadingStudents(false);
     }
-  };
+
+    // Fetch Documents
+    try {
+      setLoadingProposals(true);
+      setLoadingPreThesis(true);
+      setLoadingFinalThesis(true);
+      const res = await apiFetch('/api/supervisor/documents');
+      const data = await res.json();
+      if (data.success) {
+        setProposals(data.data.filter((doc: any) => doc.type === 'Proposal/Report'));
+        setPreThesis(data.data.filter((doc: any) => doc.type === 'Pre-Thesis'));
+        setFinalThesis(data.data.filter((doc: any) => doc.type === 'Final-Thesis'));
+      } else {
+        throw new Error(data.message || 'Failed to fetch documents');
+      }
+    } catch (error: any) {
+      setErrorProposals(error.message || 'Failed to fetch documents');
+      setErrorPreThesis(error.message || 'Failed to fetch documents');
+      setErrorFinalThesis(error.message || 'Failed to fetch documents');
+      console.error('Failed to fetch documents:', error);
+    } finally {
+      setLoadingProposals(false);
+      setLoadingPreThesis(false);
+      setLoadingFinalThesis(false);
+    }
+  }, [apiFetch, router]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      // Fetch Students
-      try {
-        setLoadingStudents(true);
-        const res = await apiFetch('/api/supervisor/students');
-        const data = await res.json();
-        if (data.success) {
-          setStudents(data.data);
-        } else {
-          throw new Error(data.message || 'Failed to fetch students');
-        }
-      } catch (error: any) {
-        setErrorStudents(error.message || 'Failed to fetch students');
-        console.error('Failed to fetch students:', error);
-      } finally {
-        setLoadingStudents(false);
-      }
-
-      // Fetch Documents
-      try {
-        setLoadingProposals(true);
-        setLoadingPreThesis(true);
-        setLoadingFinalThesis(true);
-        const res = await apiFetch('/api/supervisor/documents');
-        const data = await res.json();
-        if (data.success) {
-          setProposals(data.data.filter((doc: any) => doc.type === 'Proposal/Report'));
-          setPreThesis(data.data.filter((doc: any) => doc.type === 'Pre-Thesis'));
-          setFinalThesis(data.data.filter((doc: any) => doc.type === 'Final-Thesis'));
-        } else {
-          throw new Error(data.message || 'Failed to fetch documents');
-        }
-      } catch (error: any) {
-        setErrorProposals(error.message || 'Failed to fetch documents');
-        setErrorPreThesis(error.message || 'Failed to fetch documents');
-        setErrorFinalThesis(error.message || 'Failed to fetch documents');
-        console.error('Failed to fetch documents:', error);
-      } finally {
-        setLoadingProposals(false);
-        setLoadingPreThesis(false);
-        setLoadingFinalThesis(false);
-      }
-    };
-
     const token = localStorage.getItem('authToken');
     if (!token) {
       router.push('/member-login');
@@ -137,7 +122,7 @@ export default function SupervisorDashboardPage() {
     }
 
     fetchData();
-  }, [apiFetch, router]);
+  }, [fetchData, router]);
   
   const handleReject = (doc: any) => {
     setSelectedDocument(doc);
@@ -161,7 +146,7 @@ export default function SupervisorDashboardPage() {
       }
 
       alert(`Review submitted successfully: ${recommendation.toUpperCase()}`);
-      // Optionally, re-fetch data or update local state to reflect the change
+      fetchData(); // Refresh the data after successful submission
     } catch (error: any) {
       alert(`Error submitting review: ${error.message}`);
       console.error("Error submitting review:", error);
@@ -174,7 +159,7 @@ export default function SupervisorDashboardPage() {
 
   const sendToDSC = async (doc: any) => {
     try {
-      const response = await apiFetch(`/api/supervisor/documents/${doc.id}/forward-to-admin`, {
+      const response = await apiFetch(`/api/supervisor/documents/${doc.id}/forward-to-dsc`, {
         method: 'POST',
         body: JSON.stringify({
           documentId: doc.id,
@@ -187,7 +172,7 @@ export default function SupervisorDashboardPage() {
       }
 
       alert(`Document "${doc.title}" has been forwarded to DSC for evaluation`);
-      // Optionally, re-fetch data or update local state to reflect the change
+      fetchData(); // Refresh the data after successful submission
     } catch (error: any) {
       alert(`Error sending document to DSC: ${error.message}`);
       console.error("Error sending document to DSC:", error);

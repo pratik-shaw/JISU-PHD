@@ -3,6 +3,7 @@ import { UserRepository } from '../repositories/user.repository'; // Import User
 import { AuthService } from './auth.service'; // Import AuthService
 import { StudentRepository } from '../repositories/student.repository';
 import { SupervisorRepository } from '../repositories/supervisor.repository';
+import { SubmissionRepository } from '../repositories/submission.repository'; // Import SubmissionRepository
 import { ApiError } from '../middleware/errorHandler';
 
 export const SupervisorService = {
@@ -67,6 +68,10 @@ export const SupervisorService = {
 
   async forwardToAdmin(documentId: number) {
     return await SupervisorRepository.forwardToAdmin(documentId);
+  },
+
+  async forwardDocumentToDsc(documentId: number) {
+    await SubmissionRepository.updateStatus(documentId, 'pending_dsc_approval');
   },
 
   async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<void> {

@@ -49,9 +49,17 @@ export const StudentRepository = {
   },
 
   async createSubmission(studentId: number, submission: { type: string; title?: string; abstract?: string; document_url: string }): Promise<number> {
+    let status = 'pending'; // Default status for applications
+    if (
+      submission.type === 'Proposal/Report' ||
+      submission.type === 'Pre-Thesis' ||
+      submission.type === 'Final-Thesis'
+    ) {
+      status = 'pending_co_supervisor_approval';
+    }
     const [result] = await pool.execute(
-      'INSERT INTO submissions (student_id, type, title, abstract, document_url, status, submission_date) VALUES (?, ?, ?, ?, ?, "pending", NOW())',
-      [studentId, submission.type, submission.title || null, submission.abstract || null, submission.document_url]
+      'INSERT INTO submissions (student_id, type, title, abstract, document_url, status, submission_date) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+      [studentId, submission.type, submission.title || null, submission.abstract || null, submission.document_url, status]
     );
     const insertResult = result as any;
     return insertResult.insertId;
